@@ -1,34 +1,21 @@
-# Kubernetes Provider — Exhaustive Design
+# Kubernetes Provider — Design
 
-**Date:** 2026-04-14
-**Status:** Draft
-**Scope:** Extend the mgtt Kubernetes provider from 2 types to 37, covering every K8s resource with meaningful troubleshooting state. Refactor provider loading to support multi-file type definitions.
+**Version:** 2.0.0
+**Repo:** `github.com/mgt-tool/mgtt-provider-kubernetes`
 
-## Motivation
+## 1. Overview
 
-The current Kubernetes provider has only `deployment` and `ingress` — enough for simulation tests but not for real clusters. A production K8s setup (e.g., a Magento e-commerce platform on EKS) involves Deployments, StatefulSets, Services, HPAs, PVCs, RBAC, Webhooks, Operators, and connections to external managed services. Users can't model these systems without a provider that covers the full Kubernetes vocabulary.
+The Kubernetes provider declares a vocabulary of 37 Kubernetes resource types for the mgtt framework. Each type describes the facts that can be probed about a live resource, the state machine those facts induce, and the failure modes each state can cause in dependent components. The provider ships as vocabulary (YAML) plus a runner binary that executes probes against a cluster.
 
-The AWS provider will handle managed services (RDS, ElastiCache, SQS, etc.) separately — mgtt's multi-provider model design supports `providers: [kubernetes, aws]` natively.
+mgtt itself is type-agnostic: it consumes any provider that conforms to the provider protocol. This provider is external to mgtt and installed as a plugin.
 
-## Design Decisions
-
-1. **Multi-file provider structure** — split `types:` out of `provider.yaml` into individual `types/<name>.yaml` files. Backward-compatible: single-file providers with inline `types:` still work.
-
-2. **37 types** — exhaustive coverage of K8s resources that have runtime troubleshooting state. RBAC and webhooks included because they are root causes of failures, not just prerequisites.
-
-3. **No application-level types** — nginx, php-fpm, Redis, etc. are applications running as Deployments. The K8s provider models infrastructure primitives; the model author names their components and wires dependencies.
-
-4. **Probe commands use kubectl** — all probes are `kubectl get ... -o jsonpath` or equivalent. No in-cluster agent required. Read-only access.
-
-5. **Variables** — each type uses `{namespace}` (from provider-level default) and `{name}` (from component-level `vars`). Some types use additional variables documented per-type.
-
-## Provider Structure
-
-### Directory Layout
+## 2. Provider Layout
 
 ```
 providers/kubernetes/
-  provider.yaml              # meta, auth, variables, hooks — no types
+  provider.yaml              # meta, auth, variables, hooks
+  hooks/install.sh           # build hook
+  main.go                    # runner binary source
   types/
     deployment.yaml
     statefulset.yaml
@@ -69,6 +56,8 @@ providers/kubernetes/
     custom_resource.yaml
 ```
 
+`provider.yaml` carries meta-only definitions. Each file in `types/` is one type definition; the filename (minus `.yaml`) is the type name. A provider may alternatively inline types under a `types:` key in `provider.yaml` (single-file form).
+
 ### provider.yaml
 
 ```yaml
@@ -97,21 +86,134 @@ auth:
     writes: none
 ```
 
-### Loading Mechanism Change
+## 3. Auth Model
 
-When `load.go` parses a provider directory:
+The provider uses ambient Kubernetes credentials:
 
-1. Read `provider.yaml` — extract meta, auth, variables, hooks.
-2. If `provider.yaml` contains a `types:` key, load types inline (current behavior, backward-compatible).
-3. If no `types:` key, look for a `types/` subdirectory alongside `provider.yaml`.
-4. For each `.yaml` file in `types/`, parse it as a single type definition. The filename (minus `.yaml`) becomes the type name.
-5. Merge all types into the provider's `Types` map.
+- `KUBECONFIG` environment variable (explicit path), or
+- `~/.kube/config` (default user kubeconfig), or
+- in-cluster service account (when running inside a pod).
 
-Each type file has the same structure as what currently goes under `types.<name>:` — facts, healthy, states, default_active_state, failure_modes.
+Access is read-only: the provider issues only `kubectl get` / JSON-path / `-o json` reads. It never creates, patches, or deletes resources.
 
-## Type Definitions
+## 4. Runner Protocol
 
-### Category: Workloads
+The runner is a standalone binary built from `main.go`. mgtt invokes it with a `probe` subcommand; it returns a JSON probe result on stdout.
+
+### CLI contract
+
+```
+mgtt-provider-kubernetes probe <component> <fact> [--namespace NS] [--type TYPE]
+```
+
+- `<component>` — the resource name (typically the `name` variable from the model).
+- `<fact>` — the fact to probe, as declared in the type's `facts:` map.
+- `--namespace` — namespace (defaults to `default`).
+- `--type` — the type name (e.g., `deployment`, `ingress`).
+
+### Output schema
+
+On success, the runner writes a single JSON object to stdout and exits 0:
+
+```json
+{"value": <any>, "raw": "<string>"}
+```
+
+- `value` — the parsed, typed value delivered to the engine (int, bool, string, etc.).
+- `raw` — the stringified raw probe output for debugging.
+
+On failure, the runner writes a human-readable error to stderr and exits non-zero.
+
+### Current runner coverage
+
+The current runner implements probes for `deployment` and `ingress` only. The other 35 types are declared in vocabulary but their runner implementations are pending.
+
+## 5. Install Hook
+
+`hooks/install.sh` is invoked once at plugin install time. It builds the runner binary into `bin/mgtt-provider-kubernetes`, which is the path mgtt invokes via the `meta.command` setting.
+
+```bash
+#!/bin/bash
+set -e
+cd "$(dirname "$0")/.."
+mkdir -p bin
+go build -o bin/mgtt-provider-kubernetes .
+```
+
+## 6. Cross-Cutting Conventions
+
+### 6.1 Variables
+
+Every type resolves two variables at probe time:
+
+- `{namespace}` — from the provider-level default or model override.
+- `{name}` — from the component's `vars.name`.
+
+Some types declare additional variables, documented per-type (e.g., `operator` uses `operator_namespace` and `crd_name`; `custom_resource` uses `api_version` and `kind`).
+
+### 6.2 TTL conventions
+
+- `30s` — dynamic runtime state (replica counts, conditions, phases, restart counts).
+- `60s` — slowly-changing configuration (specs, annotations, names, resource limits).
+
+### 6.3 Cost
+
+Probes declare `cost: low | medium` where `low` is a single `kubectl get` on a named resource and `medium` is a list or cross-resource walk.
+
+### 6.4 Parse modes
+
+- `int`, `bool`, `string` — direct typed parse of scalar output.
+- `regex:<pattern>` — true if the pattern matches; extracts first capture group for numeric parse.
+- `json:<jq-style expr>` — JSON path with transforms (`| length`, filters, etc.).
+- `age_seconds` — parses an ISO 8601 timestamp and returns seconds elapsed since then. Used for staleness checks (`cronjob.last_schedule_age`, `lease.renew_age`, `secret.age`, `configmap.age`, `volumeattachment.age`, `custom_resource.age`).
+
+### 6.5 State ordering
+
+States in a type are evaluated top to bottom. The first `when:` expression that evaluates true becomes the active state, so most-specific and most-severe states are listed first. `default_active_state` is the state returned when no `when:` matches — typically the healthy state.
+
+### 6.6 Expression grammar
+
+`when:` and `healthy:` expressions use a minimal grammar over facts:
+
+- Comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- Boolean: `&` (and), `|` (or)
+- Literals: integers, booleans (`true`/`false`), double-quoted strings
+- Parenthesization is supported
+
+### 6.7 restart_count probe choice
+
+Deployment-level facts come from the Deployment object, but `restart_count` does not — Kubernetes records `restartCount` on container statuses inside each Pod, not on the Deployment. The probe lists pods by the `app={name}` label and extracts the maximum `restartCount` across containers:
+
+```
+kubectl -n {namespace} get pods -l app={name} -o jsonpath={.items[*].status.containerStatuses[0].restartCount}
+```
+
+`parse: "regex:(\\d+)"` extracts the highest numeric value from the space-separated list. The same pattern applies to `statefulset`, `daemonset`, and `operator`.
+
+## 7. Failure Effect Vocabulary
+
+Each state's `failure_modes` entry lists effects that downstream components may observe when this component is in that state.
+
+| Effect | Description |
+|--------|-------------|
+| `upstream_failure` | downstream component cannot reach this one |
+| `timeout` | requests to this component time out |
+| `connection_refused` | connection actively rejected |
+| `5xx_errors` | HTTP 500-class errors |
+| `dns_failure` | DNS resolution fails |
+| `data_loss` | data may be permanently lost |
+| `data_inconsistency` | data may be stale or inconsistent |
+| `stale_data` | data not being refreshed |
+| `resource_contention` | insufficient resources for scheduling |
+| `deployment_blocked` | new deployments/changes cannot proceed |
+| `node_drain_stuck` | node drain cannot complete |
+| `permission_denied` | RBAC prevents access |
+| `security_violation` | security policy bypassed or missing |
+| `scheduled_task_skipped` | cron or scheduled work not executing |
+
+## 8. Type Catalog
+
+### 8.1 Workloads
 
 #### deployment
 
@@ -658,7 +760,7 @@ failure_modes:
     can_cause: [upstream_failure, timeout]
 ```
 
-### Category: Networking
+### 8.2 Networking
 
 #### service
 
@@ -911,7 +1013,7 @@ failure_modes:
     can_cause: [security_violation]
 ```
 
-### Category: Scaling & Availability
+### 8.3 Scaling & Availability
 
 #### hpa
 
@@ -1059,7 +1161,7 @@ failure_modes:
     can_cause: [upstream_failure, timeout]
 ```
 
-### Category: Storage
+### 8.4 Storage
 
 #### pvc
 
@@ -1319,7 +1421,7 @@ failure_modes:
     can_cause: [timeout]
 ```
 
-### Category: Cluster
+### 8.5 Cluster
 
 #### node
 
@@ -1427,7 +1529,7 @@ failure_modes:
     can_cause: [upstream_failure, connection_refused, timeout]
 ```
 
-### Category: Resource Control
+### 8.6 Resource Control
 
 #### resourcequota
 
@@ -1555,7 +1657,7 @@ failure_modes:
     can_cause: [resource_contention]
 ```
 
-### Category: Prerequisites
+### 8.7 Prerequisites
 
 #### namespace
 
@@ -1752,8 +1854,9 @@ failure_modes:
 
 #### operator
 
+Variables: `name` (operator deployment name), `crd_name` (expected CRD), `operator_namespace` (defaults to `{namespace}`).
+
 ```yaml
-# Variables: name (operator deployment name), crd_name (expected CRD), operator_namespace (defaults to {namespace})
 facts:
   deployment_ready:
     type: mgtt.bool
@@ -1814,7 +1917,7 @@ failure_modes:
     can_cause: [upstream_failure, timeout]
 ```
 
-### Category: RBAC
+### 8.8 RBAC
 
 #### role
 
@@ -1891,6 +1994,8 @@ failure_modes:
 ```
 
 #### rolebinding
+
+The `role_ref_exists` probe uses a shell subcommand to chase the reference: `kubectl get rolebinding` yields the referenced role name, then a second `kubectl get role` confirms that role exists. Dangling references (the binding points at a role that has been deleted) manifest as a distinct state.
 
 ```yaml
 facts:
@@ -1992,7 +2097,9 @@ failure_modes:
     can_cause: [permission_denied]
 ```
 
-### Category: Webhooks
+### 8.9 Webhooks
+
+A webhook with `failurePolicy: Fail` blocks cluster operations when its backend is unreachable; one with `Ignore` silently skips, which is a security/consistency concern rather than an availability one. The two conditions are distinct states with different failure effects.
 
 #### validatingwebhookconfiguration
 
@@ -2116,7 +2223,7 @@ failure_modes:
     can_cause: [security_violation, data_inconsistency]
 ```
 
-### Category: API / Scheduling / Extensibility
+### 8.10 API / Scheduling / Extensibility
 
 #### customresourcedefinition
 
@@ -2277,9 +2384,9 @@ failure_modes:
 
 #### custom_resource
 
+Generic type for any CRD instance (ArgoCD Application, ExternalSecret, Certificate, etc.). Variables: `api_version`, `kind`, `name`, `namespace`. The `Ready` and `Synced` conditions follow the conventions used by ArgoCD, Crossplane, and most controllers in the wider CRD ecosystem.
+
 ```yaml
-# Variables: api_version, kind, name, namespace
-# Generic type for any CRD instance (ArgoCD Application, ExternalSecret, Certificate, etc.)
 facts:
   exists:
     type: mgtt.bool
@@ -2342,164 +2449,3 @@ failure_modes:
     can_cause: [upstream_failure, data_inconsistency]
 ```
 
-## New Parse Modes
-
-The type definitions introduce one new parse mode not present in the current provider:
-
-- **`age_seconds`** — takes an ISO 8601 timestamp string and returns the number of seconds elapsed since that time. Used by `cronjob.last_schedule_age`, `lease.renew_age`, `secret.age`, `configmap.age`, `volumeattachment.age`, `custom_resource.age`.
-
-This requires a small addition to the probe executor's parse logic.
-
-## New Failure Effects
-
-The type definitions introduce failure effects beyond the original set. Full vocabulary:
-
-| Effect | Description |
-|--------|-------------|
-| `upstream_failure` | downstream component cannot reach this one |
-| `timeout` | requests to this component time out |
-| `connection_refused` | connection actively rejected |
-| `5xx_errors` | HTTP 500-class errors |
-| `dns_failure` | DNS resolution fails |
-| `data_loss` | data may be permanently lost |
-| `data_inconsistency` | data may be stale or inconsistent |
-| `stale_data` | data not being refreshed |
-| `resource_contention` | insufficient resources for scheduling |
-| `deployment_blocked` | new deployments/changes cannot proceed |
-| `node_drain_stuck` | node drain cannot complete |
-| `permission_denied` | RBAC prevents access |
-| `security_violation` | security policy bypassed or missing |
-| `scheduled_task_skipped` | cron or scheduled work not executing |
-
-## Example: Modeling Magento-Planform
-
-With this provider, the magento-planform setup could be modeled as:
-
-```yaml
-meta:
-  name: magento-staging
-  version: 1.0.0
-  providers: [kubernetes, aws]
-  vars:
-    namespace: default
-
-components:
-  # Prerequisites
-  magento-namespace:
-    type: namespace
-    vars: { name: default }
-
-  magento-sa:
-    type: serviceaccount
-    vars: { name: magento }
-    depends:
-      - on: magento-namespace
-
-  ecr-registry-secret:
-    type: secret
-    vars: { name: ecr-registry }
-    depends:
-      - on: magento-namespace
-
-  nginx-config-blue:
-    type: configmap
-    vars: { name: magento-nginx-config-blue }
-
-  env-php-blue:
-    type: secret
-    vars: { name: magento-env-php-blue }
-
-  # Ingress layer
-  magento-ingress:
-    type: ingress
-    vars: { name: magento-ingress }
-    depends:
-      - on: magento-svc
-
-  # Service layer
-  magento-svc:
-    type: service
-    vars: { name: magento-svc }
-    depends:
-      - on: nginx-blue
-
-  # Workloads
-  nginx-blue:
-    type: deployment
-    vars: { name: magento-nginx-blue }
-    depends:
-      - on: magento-sa
-      - on: ecr-registry-secret
-      - on: nginx-config-blue
-      - on: php-fpm-blue
-
-  php-fpm-blue:
-    type: deployment
-    vars: { name: magento-php-fpm-blue }
-    depends:
-      - on: magento-sa
-      - on: ecr-registry-secret
-      - on: env-php-blue
-      # AWS-provider components (future):
-      # - on: rds-mysql
-      # - on: elasticache-redis
-      # - on: amazonmq
-
-  magento-cron:
-    type: deployment
-    vars: { name: magento-cron }
-    depends:
-      - on: magento-sa
-      - on: ecr-registry-secret
-
-  # Scaling
-  nginx-hpa:
-    type: hpa
-    vars: { name: magento-nginx-blue-hpa }
-    depends:
-      - on: nginx-blue
-
-  php-fpm-hpa:
-    type: hpa
-    vars: { name: magento-php-fpm-blue-hpa }
-    depends:
-      - on: php-fpm-blue
-
-  # Availability
-  nginx-pdb:
-    type: pdb
-    vars: { name: magento-nginx-pdb }
-    depends:
-      - on: nginx-blue
-
-  php-fpm-pdb:
-    type: pdb
-    vars: { name: magento-php-fpm-pdb }
-    depends:
-      - on: php-fpm-blue
-```
-
-## Implementation Scope
-
-### Orthogonal change: multi-file provider loading
-
-**Files affected:**
-- `internal/providersupport/load.go` — detect missing `types:` key, scan `types/` directory, merge into provider
-- `internal/providersupport/load_test.go` — test both single-file and multi-file loading
-
-### Provider YAML files
-
-- `providers/kubernetes/provider.yaml` — meta, auth, variables (no types)
-- `providers/kubernetes/types/*.yaml` — 37 individual type files
-
-### Existing testdata
-
-- `internal/providersupport/testdata/kubernetes.yaml` — keep as-is for backward-compatibility testing, or migrate to multi-file format alongside
-
-### Parse mode addition
-
-- `age_seconds` parse mode in the probe executor
-
-### No engine changes
-
-The engine, expression evaluator, simulator, and model loader are unchanged. The provider is pure vocabulary — the engine already knows how to consume any types/facts/states/failure_modes the provider defines.
