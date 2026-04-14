@@ -1,0 +1,11 @@
+meta:
+  name: demo
+  version: "1.0"
+  providers:
+    - kubernetes
+  vars:
+    namespace: default
+
+components:
+  nginx:
+    type: deployment
