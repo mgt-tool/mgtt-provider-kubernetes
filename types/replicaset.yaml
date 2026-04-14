@@ -1,0 +1,44 @@
+facts:
+  ready_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get replicaset {name} -o jsonpath={.status.readyReplicas}"
+      parse: int
+      cost: low
+  desired_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get replicaset {name} -o jsonpath={.spec.replicas}"
+      parse: int
+      cost: low
+  available_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get replicaset {name} -o jsonpath={.status.availableReplicas}"
+      parse: int
+      cost: low
+
+healthy:
+  - ready_replicas == desired_replicas
+
+states:
+  degraded:
+    when: "ready_replicas < desired_replicas"
+    description: some pods not ready
+  scaled_to_zero:
+    when: "desired_replicas == 0"
+    description: inactive revision
+  live:
+    when: "ready_replicas == desired_replicas"
+    description: all replicas ready
+
+default_active_state: live
+
+failure_modes:
+  degraded:
+    can_cause: [upstream_failure, timeout]
+  scaled_to_zero:
+    can_cause: [upstream_failure, connection_refused]

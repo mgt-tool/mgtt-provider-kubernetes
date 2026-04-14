@@ -1,0 +1,32 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl get ingressclass {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  controller:
+    type: mgtt.string
+    ttl: 60s
+    probe:
+      cmd: "kubectl get ingressclass {name} -o jsonpath={.spec.controller}"
+      parse: string
+      cost: low
+
+healthy:
+  - exists == true
+
+states:
+  missing:
+    when: "exists == false"
+    description: ingress class not registered
+  ready:
+    when: "exists == true"
+    description: ingress class available
+
+default_active_state: ready
+
+failure_modes:
+  missing:
+    can_cause: [upstream_failure, connection_refused]

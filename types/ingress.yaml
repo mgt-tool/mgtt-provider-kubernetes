@@ -1,0 +1,53 @@
+facts:
+  backend_count:
+    type: mgtt.int
+    ttl: 30s
+    description: number of backends with healthy endpoints
+    probe:
+      cmd: "kubectl -n {namespace} get ingress {name} -o json"
+      parse: "json:.spec.rules[*].http.paths | length"
+      cost: low
+  address_assigned:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get ingress {name} -o jsonpath={.status.loadBalancer.ingress[0]}"
+      parse: "regex:.+"
+      cost: low
+  tls_configured:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get ingress {name} -o jsonpath={.spec.tls}"
+      parse: "regex:.+"
+      cost: low
+  class:
+    type: mgtt.string
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get ingress {name} -o jsonpath={.spec.ingressClassName}"
+      parse: string
+      cost: low
+
+healthy:
+  - address_assigned == true
+  - backend_count > 0
+
+states:
+  no_backends:
+    when: "backend_count == 0"
+    description: no backend services configured
+  no_address:
+    when: "address_assigned == false"
+    description: load balancer not provisioned
+  live:
+    when: "address_assigned == true & backend_count > 0"
+    description: serving traffic
+
+default_active_state: live
+
+failure_modes:
+  no_backends:
+    can_cause: [upstream_failure, 5xx_errors]
+  no_address:
+    can_cause: [upstream_failure, connection_refused, dns_failure]

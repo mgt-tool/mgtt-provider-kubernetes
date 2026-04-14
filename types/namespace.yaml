@@ -1,0 +1,37 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl get namespace {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  phase:
+    type: mgtt.string
+    ttl: 30s
+    probe:
+      cmd: "kubectl get namespace {name} -o jsonpath={.status.phase}"
+      parse: string
+      cost: low
+
+healthy:
+  - phase == Active
+
+states:
+  terminating:
+    when: "phase == Terminating"
+    description: namespace being deleted
+  missing:
+    when: "exists == false"
+    description: namespace does not exist
+  active:
+    when: "phase == Active"
+    description: namespace active
+
+default_active_state: active
+
+failure_modes:
+  terminating:
+    can_cause: [upstream_failure, deployment_blocked]
+  missing:
+    can_cause: [upstream_failure, deployment_blocked]

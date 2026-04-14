@@ -1,0 +1,97 @@
+facts:
+  ready_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.status.readyReplicas}"
+      parse: int
+      cost: low
+      access: kubectl read-only
+  desired_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.spec.replicas}"
+      parse: int
+      cost: low
+  updated_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.status.updatedReplicas}"
+      parse: int
+      cost: low
+  available_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.status.availableReplicas}"
+      parse: int
+      cost: low
+  restart_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get pods -l app={name} -o jsonpath={.items[*].status.containerStatuses[0].restartCount}"
+      parse: "regex:(\\d+)"
+      cost: low
+  unavailable_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.status.unavailableReplicas}"
+      parse: int
+      cost: low
+  condition_available:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.status.conditions[?(@.type=='Available')].status}"
+      parse: bool
+      cost: low
+  condition_progressing:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get deploy {name} -o jsonpath={.status.conditions[?(@.type=='Progressing')].status}"
+      parse: bool
+      cost: low
+
+healthy:
+  - ready_replicas == desired_replicas
+  - condition_available == true
+  - restart_count < 5
+
+states:
+  crashed:
+    when: "restart_count > 5 & ready_replicas < desired_replicas"
+    description: crash-looping pods
+  rollout_stuck:
+    when: "updated_replicas < desired_replicas & condition_progressing == false"
+    description: rollout stalled
+  rolling:
+    when: "updated_replicas < desired_replicas"
+    description: rollout in progress
+  degraded:
+    when: "ready_replicas < desired_replicas"
+    description: some pods not ready
+  scaled_to_zero:
+    when: "desired_replicas == 0"
+    description: intentionally drained
+  live:
+    when: "ready_replicas == desired_replicas"
+    description: all replicas ready
+
+default_active_state: live
+
+failure_modes:
+  crashed:
+    can_cause: [upstream_failure, timeout, connection_refused, 5xx_errors]
+  rollout_stuck:
+    can_cause: [upstream_failure, timeout, 5xx_errors]
+  rolling:
+    can_cause: [upstream_failure, timeout]
+  degraded:
+    can_cause: [upstream_failure, timeout]
+  scaled_to_zero:
+    can_cause: [upstream_failure, connection_refused]

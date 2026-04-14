@@ -1,0 +1,37 @@
+facts:
+  ready_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get endpoints {name} -o jsonpath={.subsets[0].addresses}"
+      parse: "json:length"
+      cost: low
+  not_ready_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get endpoints {name} -o jsonpath={.subsets[0].notReadyAddresses}"
+      parse: "json:length"
+      cost: low
+
+healthy:
+  - ready_count > 0
+
+states:
+  empty:
+    when: "ready_count == 0"
+    description: no ready addresses
+  partial:
+    when: "not_ready_count > 0 & ready_count > 0"
+    description: some addresses not ready
+  live:
+    when: "ready_count > 0 & not_ready_count == 0"
+    description: all addresses ready
+
+default_active_state: live
+
+failure_modes:
+  empty:
+    can_cause: [upstream_failure, connection_refused]
+  partial:
+    can_cause: [upstream_failure, timeout]

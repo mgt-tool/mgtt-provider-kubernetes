@@ -1,0 +1,101 @@
+facts:
+  ready:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.conditions[?(@.type=='Ready')].status}"
+      parse: bool
+      cost: low
+  memory_pressure:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.conditions[?(@.type=='MemoryPressure')].status}"
+      parse: bool
+      cost: low
+  disk_pressure:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.conditions[?(@.type=='DiskPressure')].status}"
+      parse: bool
+      cost: low
+  pid_pressure:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.conditions[?(@.type=='PIDPressure')].status}"
+      parse: bool
+      cost: low
+  network_unavailable:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.conditions[?(@.type=='NetworkUnavailable')].status}"
+      parse: bool
+      cost: low
+  unschedulable:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.spec.unschedulable}"
+      parse: bool
+      cost: low
+  cpu_allocatable:
+    type: mgtt.int
+    ttl: 60s
+    description: allocatable CPU in millicores
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.allocatable.cpu}"
+      parse: int
+      cost: low
+  memory_allocatable:
+    type: mgtt.int
+    ttl: 60s
+    description: allocatable memory in bytes
+    probe:
+      cmd: "kubectl get node {name} -o jsonpath={.status.allocatable.memory}"
+      parse: int
+      cost: low
+  pod_count:
+    type: mgtt.int
+    ttl: 30s
+    description: number of pods on this node
+    probe:
+      cmd: "kubectl get pods --all-namespaces --field-selector spec.nodeName={name} -o json"
+      parse: "json:.items | length"
+      cost: medium
+
+healthy:
+  - ready == true
+  - memory_pressure == false
+  - disk_pressure == false
+
+states:
+  not_ready:
+    when: "ready == false"
+    description: node not ready
+  cordoned:
+    when: "unschedulable == true"
+    description: node cordoned for maintenance
+  pressure:
+    when: "memory_pressure == true | disk_pressure == true | pid_pressure == true"
+    description: node under resource pressure
+  network_down:
+    when: "network_unavailable == true"
+    description: node network plugin not ready
+  ready:
+    when: "ready == true"
+    description: node healthy and schedulable
+
+default_active_state: ready
+
+failure_modes:
+  not_ready:
+    can_cause: [upstream_failure, timeout, connection_refused]
+  cordoned:
+    can_cause: [upstream_failure, resource_contention]
+  pressure:
+    can_cause: [upstream_failure, timeout, resource_contention]
+  network_down:
+    can_cause: [upstream_failure, connection_refused, timeout]

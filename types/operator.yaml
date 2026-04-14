@@ -1,0 +1,58 @@
+facts:
+  deployment_ready:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {operator_namespace} get deploy {name} -o jsonpath={.status.conditions[?(@.type=='Available')].status}"
+      parse: bool
+      cost: low
+  crd_registered:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl get crd {crd_name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  webhook_healthy:
+    type: mgtt.bool
+    ttl: 30s
+    description: whether operator webhook service has endpoints
+    probe:
+      cmd: "kubectl -n {operator_namespace} get endpoints {name}-webhook-service -o jsonpath={.subsets[0].addresses[0].ip}"
+      parse: "regex:.+"
+      cost: medium
+  restart_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {operator_namespace} get pods -l app={name} -o jsonpath={.items[0].status.containerStatuses[0].restartCount}"
+      parse: int
+      cost: low
+
+healthy:
+  - deployment_ready == true
+  - crd_registered == true
+
+states:
+  crd_missing:
+    when: "crd_registered == false"
+    description: custom resource definition not registered
+  not_running:
+    when: "deployment_ready == false"
+    description: operator deployment not available
+  degraded:
+    when: "restart_count > 3"
+    description: operator pod restarting frequently
+  ready:
+    when: "deployment_ready == true & crd_registered == true"
+    description: operator running and CRD registered
+
+default_active_state: ready
+
+failure_modes:
+  crd_missing:
+    can_cause: [upstream_failure, deployment_blocked]
+  not_running:
+    can_cause: [upstream_failure, deployment_blocked]
+  degraded:
+    can_cause: [upstream_failure, timeout]

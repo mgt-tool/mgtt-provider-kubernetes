@@ -1,0 +1,46 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get configmap {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  key_count:
+    type: mgtt.int
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get configmap {name} -o json"
+      parse: "json:.data | length"
+      cost: low
+  age:
+    type: mgtt.int
+    ttl: 60s
+    description: seconds since creation
+    probe:
+      cmd: "kubectl -n {namespace} get configmap {name} -o jsonpath={.metadata.creationTimestamp}"
+      parse: age_seconds
+      cost: low
+
+healthy:
+  - exists == true
+  - key_count > 0
+
+states:
+  missing:
+    when: "exists == false"
+    description: configmap does not exist
+  empty:
+    when: "exists == true & key_count == 0"
+    description: configmap exists but has no data keys
+  ready:
+    when: "exists == true & key_count > 0"
+    description: configmap available with data
+
+default_active_state: ready
+
+failure_modes:
+  missing:
+    can_cause: [upstream_failure, deployment_blocked]
+  empty:
+    can_cause: [upstream_failure]
