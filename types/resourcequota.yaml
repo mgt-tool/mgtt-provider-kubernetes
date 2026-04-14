@@ -1,0 +1,75 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  cpu_used:
+    type: mgtt.int
+    ttl: 30s
+    description: CPU used in millicores
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.status.used.cpu}"
+      parse: int
+      cost: low
+  cpu_hard:
+    type: mgtt.int
+    ttl: 60s
+    description: CPU limit in millicores
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.status.hard.cpu}"
+      parse: int
+      cost: low
+  memory_used:
+    type: mgtt.int
+    ttl: 30s
+    description: memory used in bytes
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.status.used.memory}"
+      parse: int
+      cost: low
+  memory_hard:
+    type: mgtt.int
+    ttl: 60s
+    description: memory limit in bytes
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.status.hard.memory}"
+      parse: int
+      cost: low
+  pods_used:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.status.used.pods}"
+      parse: int
+      cost: low
+  pods_hard:
+    type: mgtt.int
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get resourcequota {name} -o jsonpath={.status.hard.pods}"
+      parse: int
+      cost: low
+
+healthy:
+  - pods_used < pods_hard
+  - cpu_used < cpu_hard
+
+states:
+  missing:
+    when: "exists == false"
+    description: quota not defined
+  exhausted:
+    when: "pods_used >= pods_hard | cpu_used >= cpu_hard"
+    description: quota fully consumed — new pods will be rejected
+  active:
+    when: "exists == true"
+    description: quota in effect with headroom
+
+default_active_state: active
+
+failure_modes:
+  exhausted:
+    can_cause: [upstream_failure, deployment_blocked, resource_contention]

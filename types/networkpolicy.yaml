@@ -1,0 +1,52 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get networkpolicy {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  pod_selector_match_count:
+    type: mgtt.int
+    ttl: 30s
+    description: number of pods matching the policy selector
+    probe:
+      cmd: "kubectl -n {namespace} get networkpolicy {name} -o jsonpath={.spec.podSelector.matchLabels}"
+      parse: "json:length"
+      cost: medium
+  ingress_rule_count:
+    type: mgtt.int
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get networkpolicy {name} -o jsonpath={.spec.ingress}"
+      parse: "json:length"
+      cost: low
+  egress_rule_count:
+    type: mgtt.int
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get networkpolicy {name} -o jsonpath={.spec.egress}"
+      parse: "json:length"
+      cost: low
+
+healthy:
+  - exists == true
+
+states:
+  missing:
+    when: "exists == false"
+    description: network policy does not exist
+  no_targets:
+    when: "pod_selector_match_count == 0"
+    description: policy targets no pods
+  active:
+    when: "exists == true & pod_selector_match_count > 0"
+    description: policy applied to pods
+
+default_active_state: active
+
+failure_modes:
+  missing:
+    can_cause: [security_violation]
+  no_targets:
+    can_cause: [security_violation]

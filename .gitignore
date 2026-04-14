@@ -1,0 +1,38 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+mgtt-provider-kubernetes
+
+# Test binary
+*.test
+
+# Coverage / profiling
+*.out
+*.prof
+coverage.txt
+
+# Go workspace
+go.work
+go.work.sum
+
+# Vendored deps
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env
+.env
+.env.local

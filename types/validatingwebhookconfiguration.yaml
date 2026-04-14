@@ -1,0 +1,56 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl get validatingwebhookconfiguration {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  webhook_count:
+    type: mgtt.int
+    ttl: 60s
+    probe:
+      cmd: "kubectl get validatingwebhookconfiguration {name} -o json"
+      parse: "json:.webhooks | length"
+      cost: low
+  service_available:
+    type: mgtt.bool
+    ttl: 30s
+    description: whether the webhook backend service has ready endpoints
+    probe:
+      cmd: "kubectl get validatingwebhookconfiguration {name} -o jsonpath={.webhooks[0].clientConfig.service.name}"
+      parse: "regex:.+"
+      cost: medium
+  failure_policy:
+    type: mgtt.string
+    ttl: 60s
+    probe:
+      cmd: "kubectl get validatingwebhookconfiguration {name} -o jsonpath={.webhooks[0].failurePolicy}"
+      parse: string
+      cost: low
+
+healthy:
+  - exists == true
+  - service_available == true
+
+states:
+  missing:
+    when: "exists == false"
+    description: webhook configuration does not exist
+  backend_down:
+    when: "exists == true & service_available == false & failure_policy == Fail"
+    description: webhook backend unreachable — blocking cluster operations
+  backend_degraded:
+    when: "exists == true & service_available == false & failure_policy == Ignore"
+    description: webhook backend unreachable — silently skipped
+  active:
+    when: "exists == true & service_available == true"
+    description: webhook active and backend reachable
+
+default_active_state: active
+
+failure_modes:
+  backend_down:
+    can_cause: [deployment_blocked, upstream_failure]
+  backend_degraded:
+    can_cause: [security_violation]

@@ -1,0 +1,72 @@
+facts:
+  desired_scheduled:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get daemonset {name} -o jsonpath={.status.desiredNumberScheduled}"
+      parse: int
+      cost: low
+  current_scheduled:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get daemonset {name} -o jsonpath={.status.currentNumberScheduled}"
+      parse: int
+      cost: low
+  ready:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get daemonset {name} -o jsonpath={.status.numberReady}"
+      parse: int
+      cost: low
+  misscheduled:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get daemonset {name} -o jsonpath={.status.numberMisscheduled}"
+      parse: int
+      cost: low
+  unavailable:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get daemonset {name} -o jsonpath={.status.numberUnavailable}"
+      parse: int
+      cost: low
+  restart_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get pods -l app={name} -o jsonpath={.items[*].status.containerStatuses[0].restartCount}"
+      parse: "regex:(\\d+)"
+      cost: low
+
+healthy:
+  - ready == desired_scheduled
+  - misscheduled == 0
+  - restart_count < 5
+
+states:
+  crashed:
+    when: "restart_count > 5 & ready < desired_scheduled"
+    description: crash-looping pods
+  incomplete:
+    when: "ready < desired_scheduled"
+    description: not running on all target nodes
+  misscheduled:
+    when: "misscheduled > 0"
+    description: running on nodes it should not be
+  live:
+    when: "ready == desired_scheduled"
+    description: running on all target nodes
+
+default_active_state: live
+
+failure_modes:
+  crashed:
+    can_cause: [upstream_failure, timeout, connection_refused]
+  incomplete:
+    can_cause: [upstream_failure, timeout]
+  misscheduled:
+    can_cause: [resource_contention]

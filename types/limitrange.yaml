@@ -1,0 +1,41 @@
+facts:
+  exists:
+    type: mgtt.bool
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get limitrange {name} -o jsonpath={.metadata.name}"
+      parse: "regex:.+"
+      cost: low
+  default_cpu_limit:
+    type: mgtt.int
+    ttl: 60s
+    description: default CPU limit in millicores
+    probe:
+      cmd: "kubectl -n {namespace} get limitrange {name} -o jsonpath={.spec.limits[0].default.cpu}"
+      parse: int
+      cost: low
+  default_memory_limit:
+    type: mgtt.int
+    ttl: 60s
+    description: default memory limit in bytes
+    probe:
+      cmd: "kubectl -n {namespace} get limitrange {name} -o jsonpath={.spec.limits[0].default.memory}"
+      parse: int
+      cost: low
+
+healthy:
+  - exists == true
+
+states:
+  missing:
+    when: "exists == false"
+    description: limit range not defined
+  active:
+    when: "exists == true"
+    description: limit range in effect
+
+default_active_state: active
+
+failure_modes:
+  missing:
+    can_cause: [resource_contention]

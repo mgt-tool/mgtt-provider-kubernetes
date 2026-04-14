@@ -1,0 +1,88 @@
+facts:
+  ready_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get statefulset {name} -o jsonpath={.status.readyReplicas}"
+      parse: int
+      cost: low
+  desired_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get statefulset {name} -o jsonpath={.spec.replicas}"
+      parse: int
+      cost: low
+  updated_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get statefulset {name} -o jsonpath={.status.updatedReplicas}"
+      parse: int
+      cost: low
+  current_replicas:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get statefulset {name} -o jsonpath={.status.currentReplicas}"
+      parse: int
+      cost: low
+  current_revision:
+    type: mgtt.string
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get statefulset {name} -o jsonpath={.status.currentRevision}"
+      parse: string
+      cost: low
+  update_revision:
+    type: mgtt.string
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get statefulset {name} -o jsonpath={.status.updateRevision}"
+      parse: string
+      cost: low
+  restart_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get pods -l app={name} -o jsonpath={.items[*].status.containerStatuses[0].restartCount}"
+      parse: "regex:(\\d+)"
+      cost: low
+
+healthy:
+  - ready_replicas == desired_replicas
+  - restart_count < 5
+
+states:
+  crashed:
+    when: "restart_count > 5 & ready_replicas < desired_replicas"
+    description: crash-looping pods
+  rollout_stuck:
+    when: "updated_replicas < desired_replicas & current_revision != update_revision"
+    description: partition rollout stalled
+  rolling:
+    when: "current_revision != update_revision"
+    description: rolling update in progress
+  degraded:
+    when: "ready_replicas < desired_replicas"
+    description: some pods not ready
+  scaled_to_zero:
+    when: "desired_replicas == 0"
+    description: intentionally drained
+  live:
+    when: "ready_replicas == desired_replicas"
+    description: all replicas ready
+
+default_active_state: live
+
+failure_modes:
+  crashed:
+    can_cause: [upstream_failure, timeout, connection_refused, 5xx_errors]
+  rollout_stuck:
+    can_cause: [upstream_failure, timeout, 5xx_errors]
+  rolling:
+    can_cause: [upstream_failure, timeout]
+  degraded:
+    can_cause: [upstream_failure, timeout]
+  scaled_to_zero:
+    can_cause: [upstream_failure, connection_refused]

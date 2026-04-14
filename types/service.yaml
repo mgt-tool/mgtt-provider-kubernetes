@@ -1,0 +1,52 @@
+facts:
+  endpoint_count:
+    type: mgtt.int
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get endpoints {name} -o jsonpath={.subsets[0].addresses}"
+      parse: "json:length"
+      cost: low
+  type:
+    type: mgtt.string
+    ttl: 60s
+    probe:
+      cmd: "kubectl -n {namespace} get svc {name} -o jsonpath={.spec.type}"
+      parse: string
+      cost: low
+  selector_match:
+    type: mgtt.bool
+    ttl: 30s
+    description: whether selector matches any running pods
+    probe:
+      cmd: "kubectl -n {namespace} get endpoints {name} -o jsonpath={.subsets[0].addresses[0].ip}"
+      parse: "regex:.+"
+      cost: low
+  external_ip_assigned:
+    type: mgtt.bool
+    ttl: 30s
+    probe:
+      cmd: "kubectl -n {namespace} get svc {name} -o jsonpath={.status.loadBalancer.ingress[0]}"
+      parse: "regex:.+"
+      cost: low
+
+healthy:
+  - endpoint_count > 0
+
+states:
+  no_endpoints:
+    when: "endpoint_count == 0"
+    description: selector matches nothing
+  pending_lb:
+    when: "type == LoadBalancer & external_ip_assigned == false"
+    description: load balancer not yet provisioned
+  live:
+    when: "endpoint_count > 0"
+    description: routing traffic
+
+default_active_state: live
+
+failure_modes:
+  no_endpoints:
+    can_cause: [upstream_failure, connection_refused, dns_failure]
+  pending_lb:
+    can_cause: [upstream_failure, connection_refused, timeout]
