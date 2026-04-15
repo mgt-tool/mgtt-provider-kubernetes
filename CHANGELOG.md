@@ -2,6 +2,50 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [2.3.0] — 2026-04-16
+
+**Full 37-of-37 vocabulary coverage.** All types declared in `types/*.yaml` now have runtime probe implementations.
+
+### Added
+
+- **Runtime probes** for the 17 Tier-3 types:
+  - RBAC: `role`, `clusterrole`, `rolebinding`, `clusterrolebinding`
+  - Webhooks: `validatingwebhookconfiguration`, `mutatingwebhookconfiguration`
+  - Extensibility: `customresourcedefinition`, `custom_resource`, `operator`, `priorityclass`, `lease`
+  - Storage (cluster-scoped): `persistentvolume`, `storageclass`, `csidriver`, `volumeattachment`
+  - Quotas: `resourcequota`, `limitrange`
+- **Dangling-binding detection**: `rolebinding` and `clusterrolebinding` expose a `role_ref_exists` fact that
+  probes whether the referenced Role/ClusterRole is still present. A binding pointing at a missing role is a
+  silent RBAC failure that's hard to find via `kubectl describe`.
+- **Webhook backend reachability**: `validatingwebhookconfiguration` and `mutatingwebhookconfiguration`
+  expose a `service_available` fact that resolves `clientConfig.service.{name, namespace}` for every
+  webhook and probes the target Service. URL-based hooks are treated as reachable (we can't probe
+  arbitrary external URLs from read-only kubectl).
+- **Generic CRD instance probing**: `custom_resource` accepts either `--resource <plural.group>` or
+  `--kind <Kind> [--api <group/version>]` via `Command.Extra` and probes conditions on any CRD instance
+  without needing a per-CRD provider.
+- **Composite operator type**: `operator` composes existing primitives (deployment health, CRD presence,
+  webhook backend reachability) into a single-component view of an operator deployment. Accepts optional
+  `--crd` and `--webhook` flags.
+- **CSI driver node-readiness**: `csidriver.node_count` returns the number of CSINode objects that list
+  this driver — a proxy for "how many nodes can mount volumes provisioned by this CSI".
+
+### Tests
+
+- `internal/probes/tier3_test.go` exercises the non-trivial composite probes (rolebinding→role resolution,
+  webhook→service resolution, custom_resource flag parsing, CSIDriver node counting) using a
+  `multiFakeKubectl` router that returns distinct responses per kubectl subcommand.
+
+### Coverage summary
+
+| Tier | Types | Status |
+|---|---|---|
+| Tier 1 (v2.1.0) | deployment, ingress, pod, service, endpoints, statefulset, daemonset, pvc, node, hpa | ✅ |
+| Tier 2 (v2.2.0) | replicaset, cronjob, job, networkpolicy, ingressclass, pdb, namespace, configmap, secret, serviceaccount | ✅ |
+| Tier 3 (v2.3.0) | role, clusterrole, rolebinding, clusterrolebinding, validatingwebhookconfiguration, mutatingwebhookconfiguration, customresourcedefinition, custom_resource, operator, priorityclass, lease, persistentvolume, storageclass, csidriver, volumeattachment, resourcequota, limitrange | ✅ |
+
+**37 / 37.**
+
 ## [2.2.0] — 2026-04-16
 
 Runtime coverage expands to 20 of 37 vocabulary types (Tier 1 + Tier 2).
