@@ -5,8 +5,10 @@ package probes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mgt-tool/mgtt-provider-kubernetes/internal/kubeclassify"
 	"github.com/mgt-tool/mgtt/sdk/provider"
@@ -136,6 +138,50 @@ func AnyContainerReason(data map[string]any, reason string) bool {
 	return false
 }
 
+// AgeSeconds parses an RFC3339 timestamp and returns the elapsed seconds
+// since that time. Returns 0 for empty or malformed input.
+func AgeSeconds(rfc3339 string) int {
+	if rfc3339 == "" {
+		return 0
+	}
+	t, err := time.Parse(time.RFC3339, rfc3339)
+	if err != nil {
+		return 0
+	}
+	return int(time.Since(t).Seconds())
+}
+
+// CountMapKeys returns the number of keys in the map at path, or 0.
+func CountMapKeys(data map[string]any, path ...string) int {
+	if m, ok := walk(data, path...).(map[string]any); ok {
+		return len(m)
+	}
+	return 0
+}
+
+// Exists returns a ProbeFn that reports whether `kubectl get <kind> <name>`
+// succeeds. Uses the standard kubeclassify NotFound translation to distinguish
+// "resource missing" from "backend error". Namespaced kinds pass scoped=true;
+// cluster-scoped kinds pass false.
+func Exists(c *shell.Client, kind string, scoped bool) provider.ProbeFn {
+	return func(ctx context.Context, req provider.Request) (provider.Result, error) {
+		args := []string{"get", kind, req.Name}
+		if scoped {
+			args = append([]string{"-n", req.Namespace}, args...)
+		}
+		_, err := KubectlJSON(ctx, c, args...)
+		if err != nil {
+			// NotFound → return bool:false, not an error — the `exists` fact
+			// is specifically intended to observe presence.
+			if errors.Is(err, provider.ErrNotFound) {
+				return provider.BoolResult(false), nil
+			}
+			return provider.Result{}, err
+		}
+		return provider.BoolResult(true), nil
+	}
+}
+
 func walk(m map[string]any, path ...string) any {
 	var cur any = m
 	for _, k := range path {
@@ -148,10 +194,11 @@ func walk(m map[string]any, path ...string) any {
 	return cur
 }
 
-// Register adds all Tier-1 types to the provider registry. Each type's
+// Register adds all implemented types to the provider registry. Each type's
 // concrete probe map lives in its own file.
 func Register(r *provider.Registry) {
 	c := NewKubectl()
+	// Tier 1 (v2.1.0)
 	registerDeployment(r, c)
 	registerIngress(r, c)
 	registerPod(r, c)
@@ -162,4 +209,15 @@ func Register(r *provider.Registry) {
 	registerPVC(r, c)
 	registerNode(r, c)
 	registerHPA(r, c)
+	// Tier 2 (v2.2.0)
+	registerReplicaset(r, c)
+	registerCronJob(r, c)
+	registerJob(r, c)
+	registerNetworkPolicy(r, c)
+	registerIngressClass(r, c)
+	registerPDB(r, c)
+	registerNamespace(r, c)
+	registerConfigMap(r, c)
+	registerSecret(r, c)
+	registerServiceAccount(r, c)
 }
