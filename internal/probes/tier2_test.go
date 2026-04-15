@@ -12,7 +12,7 @@ import (
 )
 
 // fakeKubectl builds a shell.Client whose Exec returns the given JSON blob
-// unchanged (after -o json). Used for locking Tier-2 probe behavior without
+// unchanged (after -o json). Used for locking probe behavior without
 // running real kubectl.
 func fakeKubectl(t *testing.T, response any) *shell.Client {
 	t.Helper()
