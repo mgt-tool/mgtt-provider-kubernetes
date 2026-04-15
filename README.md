@@ -2,27 +2,23 @@
 
 Kubernetes provider for [mgtt](https://github.com/mgt-tool/mgtt) — the model guided troubleshooting tool.
 
-Version **2.1.0** — built on the [mgtt provider SDK](https://github.com/mgt-tool/mgtt/tree/main/sdk/provider) (requires mgtt ≥ 0.1.0).
+Version **2.3.0** — built on the [mgtt provider SDK](https://github.com/mgt-tool/mgtt/tree/main/sdk/provider) (requires mgtt ≥ 0.1.0).
 
 ## Vocabulary
 
-The vocabulary (what the engine reasons about) lives in `provider.yaml` plus one file per type under `types/`. All 37 types are declared so the engine can reason about them; runtime probes are implemented in tiers:
+The vocabulary (what the engine reasons about) lives in `provider.yaml` plus one file per type under `types/`. All 37 types have runtime probes.
 
-| Group | Types | Runtime tier |
-|---|---|---|
-| Workloads | `deployment`, `statefulset`, `daemonset`, `pod` | ✅ Tier 1 |
-| Workloads (deferred) | `replicaset`, `cronjob`, `job` | ⏳ Tier 2 |
-| Networking | `service`, `endpoints`, `ingress` | ✅ Tier 1 |
-| Networking (deferred) | `networkpolicy`, `ingressclass` | ⏳ Tier 2 |
-| Scaling | `hpa` | ✅ Tier 1 |
-| Scaling (deferred) | `pdb` | ⏳ Tier 2 |
-| Storage | `pvc` | ✅ Tier 1 |
-| Storage (deferred) | `persistentvolume`, `storageclass`, `csidriver`, `volumeattachment` | ⏳ Tier 2/3 |
-| Cluster | `node` | ✅ Tier 1 |
-| Cluster (deferred) | `resourcequota`, `limitrange` | ⏳ Tier 2 |
-| Prereqs, RBAC, Webhooks, Extensibility | all | ⏳ Tier 2/3 |
-
-Tier 1 covers the workload-path types operators most often troubleshoot. Tier 2/3 vocabulary is still visible to the engine for reasoning; invoking a probe on a Tier 2/3 type will surface `usage error: unknown fact`. The rationale lives in `docs/superpowers/plans/2026-04-15-provider-hardening.md` (S4 triage).
+| Group | Types |
+|---|---|
+| Workloads | `deployment`, `statefulset`, `daemonset`, `replicaset`, `pod`, `job`, `cronjob` |
+| Networking | `service`, `endpoints`, `ingress`, `ingressclass`, `networkpolicy` |
+| Scaling & availability | `hpa`, `pdb` |
+| Storage | `pvc`, `persistentvolume`, `storageclass`, `csidriver`, `volumeattachment` |
+| Cluster | `node`, `resourcequota`, `limitrange` |
+| Prerequisites | `namespace`, `serviceaccount`, `secret`, `configmap`, `operator` |
+| RBAC | `role`, `clusterrole`, `rolebinding`, `clusterrolebinding` |
+| Webhooks | `validatingwebhookconfiguration`, `mutatingwebhookconfiguration` |
+| Extensibility | `customresourcedefinition`, `custom_resource`, `priorityclass`, `lease` |
 
 See `docs/design.md` for the per-type state machines.
 
