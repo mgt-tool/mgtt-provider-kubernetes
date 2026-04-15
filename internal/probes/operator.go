@@ -48,14 +48,23 @@ func registerOperator(r *provider.Registry, c *shell.Client) {
 			if wh == "" {
 				return provider.BoolResult(true), nil // no webhook declared
 			}
-			d, err := KubectlJSON(ctx, c, "get", "validatingwebhookconfiguration", wh)
-			if err != nil {
-				if errors.Is(err, provider.ErrNotFound) {
-					return provider.BoolResult(false), nil
+			// Try validating first, then mutating. Operators ship either,
+			// both, or neither; a caller supplies only the name.
+			for _, kind := range []string{
+				"validatingwebhookconfiguration",
+				"mutatingwebhookconfiguration",
+			} {
+				d, err := KubectlJSON(ctx, c, "get", kind, wh)
+				if err != nil {
+					if errors.Is(err, provider.ErrNotFound) {
+						continue
+					}
+					return provider.Result{}, err
 				}
-				return provider.Result{}, err
+				return provider.BoolResult(webhookBackendReachable(ctx, c, d)), nil
 			}
-			return provider.BoolResult(webhookBackendReachable(ctx, c, d)), nil
+			// Neither kind matched the supplied name.
+			return provider.BoolResult(false), nil
 		},
 		"restart_count": func(ctx context.Context, req provider.Request) (provider.Result, error) {
 			d, err := KubectlJSON(ctx, c, "-n", req.Namespace, "get", "pods", "-l", "app="+req.Name)
