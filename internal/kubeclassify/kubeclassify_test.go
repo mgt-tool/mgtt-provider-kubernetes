@@ -30,11 +30,43 @@ func TestClassify_Transient(t *testing.T) {
 		"i/o timeout",
 		"context deadline exceeded",
 		"connection refused",
+		"dial tcp: lookup kubernetes.default.svc: no such host",
+		"TLS handshake timeout",
+		"connection reset by peer",
+		"Server returned HTTP status 503 Service Unavailable",
 	}
 	for _, msg := range cases {
 		err := Classify(msg, errors.New("exit status 1"))
 		if !errors.Is(err, provider.ErrTransient) {
 			t.Errorf("stderr %q: want ErrTransient, got %v", msg, err)
+		}
+	}
+}
+
+func TestClassify_NotFoundVariants(t *testing.T) {
+	cases := []string{
+		`Error from server (NotFound): deployments.apps "x" not found`,
+		`error: the server doesn't have a resource type "widgets"`,
+		`Error from server (NotFound): the server could not find the requested resource`,
+	}
+	for _, msg := range cases {
+		err := Classify(msg, errors.New("exit status 1"))
+		if !errors.Is(err, provider.ErrNotFound) {
+			t.Errorf("stderr %q: want ErrNotFound, got %v", msg, err)
+		}
+	}
+}
+
+func TestClassify_ForbiddenVariants(t *testing.T) {
+	cases := []string{
+		`Error from server (Forbidden): pods is forbidden: User "x"`,
+		`error: You must be logged in to the server (Unauthorized)`,
+		`Error from server (Forbidden): User "x" cannot list resource "nodes"`,
+	}
+	for _, msg := range cases {
+		err := Classify(msg, errors.New("exit status 1"))
+		if !errors.Is(err, provider.ErrForbidden) {
+			t.Errorf("stderr %q: want ErrForbidden, got %v", msg, err)
 		}
 	}
 }
