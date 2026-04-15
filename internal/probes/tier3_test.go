@@ -225,6 +225,56 @@ func TestCustomResource_ResourceFlag(t *testing.T) {
 	}
 }
 
+func TestCustomResource_KindAndApiVersion_StripsVersionFromTarget(t *testing.T) {
+	c := shell.New("kubectl")
+	seenArgs := ""
+	c.Exec = func(ctx context.Context, args ...string) ([]byte, []byte, error) {
+		seenArgs = strings.Join(args, " ")
+		return []byte(`{"status":{}}`), nil, nil
+	}
+	c.Classify = func(stderr string, runErr error) error { return runErr }
+
+	r := provider.NewRegistry()
+	registerCustomResource(r, c)
+	_, err := r.Probe(context.Background(), provider.Request{
+		Type: "custom_resource", Name: "w1", Namespace: "default", Fact: "ready",
+		Extra: map[string]string{"kind": "Widget", "api_version": "example.com/v1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Target must be "Widget.example.com" — no /v1 suffix.
+	if !strings.Contains(seenArgs, "Widget.example.com") {
+		t.Fatalf("expected target Widget.example.com: %s", seenArgs)
+	}
+	if strings.Contains(seenArgs, "example.com/v1") {
+		t.Fatalf("target must strip /version; got %s", seenArgs)
+	}
+}
+
+func TestCustomResource_ClusterScope_DropsNamespace(t *testing.T) {
+	c := shell.New("kubectl")
+	seenArgs := ""
+	c.Exec = func(ctx context.Context, args ...string) ([]byte, []byte, error) {
+		seenArgs = strings.Join(args, " ")
+		return []byte(`{}`), nil, nil
+	}
+	c.Classify = func(stderr string, runErr error) error { return runErr }
+
+	r := provider.NewRegistry()
+	registerCustomResource(r, c)
+	_, err := r.Probe(context.Background(), provider.Request{
+		Type: "custom_resource", Name: "cr-1", Namespace: "should-be-ignored", Fact: "ready",
+		Extra: map[string]string{"resource": "clusterinstance.example.com", "scope": "cluster"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(seenArgs, "-n should-be-ignored") {
+		t.Fatalf("cluster scope must omit -n: %s", seenArgs)
+	}
+}
+
 // --- Storage ---------------------------------------------------------------
 
 func TestStorageClass_IsDefault(t *testing.T) {
@@ -269,22 +319,16 @@ func TestResourceQuota_CPUUsedString(t *testing.T) {
 }
 
 func TestCSIDriver_NodeCount_CountsMatchingNodes(t *testing.T) {
-	m := &multiFakeKubectl{responses: map[string]any{
-		"csinode": map[string]any{"items": []any{
-			map[string]any{"spec": map[string]any{"drivers": []any{
-				map[string]any{"name": "ebs.csi.aws.com"},
-				map[string]any{"name": "efs.csi.aws.com"},
-			}}},
-			map[string]any{"spec": map[string]any{"drivers": []any{
-				map[string]any{"name": "ebs.csi.aws.com"},
-			}}},
-			map[string]any{"spec": map[string]any{"drivers": []any{
-				map[string]any{"name": "efs.csi.aws.com"},
-			}}},
-		}},
-	}}
+	// The probe pushes the filter into kubectl via jsonpath. We fake the
+	// jsonpath output directly: one `x` per matching CSINode.
+	c := shell.New("kubectl")
+	c.Exec = func(ctx context.Context, args ...string) ([]byte, []byte, error) {
+		// 2 nodes list "ebs.csi.aws.com" in their drivers.
+		return []byte("xx"), nil, nil
+	}
+	c.Classify = func(stderr string, runErr error) error { return runErr }
 	r := provider.NewRegistry()
-	registerCSIDriver(r, m.client())
+	registerCSIDriver(r, c)
 	res, err := r.Probe(context.Background(), provider.Request{
 		Type: "csidriver", Name: "ebs.csi.aws.com", Fact: "node_count",
 	})

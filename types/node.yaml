@@ -42,20 +42,20 @@ facts:
       parse: bool
       cost: low
   cpu_allocatable:
-    type: mgtt.int
+    type: mgtt.string
     ttl: 60s
-    description: allocatable CPU in millicores
+    description: allocatable CPU (kubectl quantity, e.g. "4" or "3500m")
     probe:
       cmd: "kubectl get node {name} -o jsonpath={.status.allocatable.cpu}"
-      parse: int
+      parse: string
       cost: low
   memory_allocatable:
-    type: mgtt.int
+    type: mgtt.string
     ttl: 60s
-    description: allocatable memory in bytes
+    description: allocatable memory (kubectl quantity, e.g. "16Gi")
     probe:
       cmd: "kubectl get node {name} -o jsonpath={.status.allocatable.memory}"
-      parse: int
+      parse: string
       cost: low
   pod_count:
     type: mgtt.int
