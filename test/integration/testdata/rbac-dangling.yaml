@@ -1,0 +1,29 @@
+# RoleBinding referencing a Role that does NOT exist. This is the exact
+# "silently-broken RBAC" scenario the Tier-3 role_ref_exists probe catches —
+# kubectl describe reports the binding as healthy even though it grants
+# nothing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mgtt-it-rbac
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: reader
+  namespace: mgtt-it-rbac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: reader-bind
+  namespace: mgtt-it-rbac
+subjects:
+  - kind: ServiceAccount
+    name: reader
+    namespace: mgtt-it-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  # This Role intentionally is never created — the binding is dangling.
+  name: does-not-exist
