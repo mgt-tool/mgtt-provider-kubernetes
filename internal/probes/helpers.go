@@ -198,7 +198,7 @@ func walk(m map[string]any, path ...string) any {
 // concrete probe map lives in its own file.
 func Register(r *provider.Registry) {
 	c := NewKubectl()
-	// Tier 1 (v2.1.0)
+	// Workloads
 	registerDeployment(r, c)
 	registerIngress(r, c)
 	registerPod(r, c)
@@ -209,7 +209,6 @@ func Register(r *provider.Registry) {
 	registerPVC(r, c)
 	registerNode(r, c)
 	registerHPA(r, c)
-	// Tier 2 (v2.2.0)
 	registerReplicaset(r, c)
 	registerCronJob(r, c)
 	registerJob(r, c)
@@ -220,7 +219,6 @@ func Register(r *provider.Registry) {
 	registerConfigMap(r, c)
 	registerSecret(r, c)
 	registerServiceAccount(r, c)
-	// Tier 3 (v2.3.0) — full 37-type coverage
 	registerRole(r, c)
 	registerClusterRole(r, c)
 	registerRoleBinding(r, c)

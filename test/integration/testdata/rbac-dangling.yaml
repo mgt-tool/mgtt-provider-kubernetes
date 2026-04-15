@@ -1,5 +1,5 @@
 # RoleBinding referencing a Role that does NOT exist. This is the exact
-# "silently-broken RBAC" scenario the Tier-3 role_ref_exists probe catches —
+# "silently-broken RBAC" scenario the role_ref_exists probe catches —
 # kubectl describe reports the binding as healthy even though it grants
 # nothing.
 apiVersion: v1
