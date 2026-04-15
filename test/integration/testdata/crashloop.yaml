@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mgtt-it-crashloop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crasher
+  namespace: mgtt-it-crashloop
+  labels:
+    app: crasher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crasher
+  template:
+    metadata:
+      labels:
+        app: crasher
+    spec:
+      # Minimal: busybox exits immediately → kubelet restarts → crashloop.
+      containers:
+        - name: crasher
+          image: busybox:1.36
+          command: ["sh", "-c", "echo starting; exit 1"]
+          resources:
+            requests: {memory: "16Mi", cpu: "10m"}
+            limits:   {memory: "32Mi", cpu: "20m"}
