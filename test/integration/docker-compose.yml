@@ -1,0 +1,21 @@
+services:
+  tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.tester
+    image: mgtt-it-tester:local
+    privileged: true
+    volumes:
+      - ../../:/repo
+      - tester-docker:/var/lib/docker
+      - tester-gocache:/root/.cache/go-build
+      - tester-gomod:/root/go/pkg/mod
+    environment:
+      - MGTT_IMAGE=${MGTT_IMAGE:-ghcr.io/mgt-tool/mgtt:latest}
+      - MGTT_SRC=${MGTT_SRC:-}
+    working_dir: /repo
+
+volumes:
+  tester-docker:
+  tester-gocache:
+  tester-gomod:
