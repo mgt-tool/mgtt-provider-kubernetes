@@ -1,0 +1,30 @@
+FROM docker:27-dind
+
+ARG GO_VERSION=1.25.7
+ARG KUBECTL_VERSION=v1.30.0
+ARG KIND_VERSION=v0.23.0
+ARG TARGETARCH=amd64
+
+RUN apk add --no-cache bash git curl ca-certificates tar
+
+RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH}.tar.gz \
+      | tar -C /usr/local -xz
+ENV PATH=/usr/local/go/bin:/root/go/bin:$PATH
+ENV GOPATH=/root/go
+ENV GOCACHE=/root/.cache/go-build
+
+RUN curl -fsSLo /usr/local/bin/kubectl \
+      https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl \
+ && chmod +x /usr/local/bin/kubectl
+
+RUN curl -fsSLo /usr/local/bin/kind \
+      https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${TARGETARCH} \
+ && chmod +x /usr/local/bin/kind
+
+WORKDIR /repo
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["go", "test", "-tags=integration", "-v", "./test/integration/..."]

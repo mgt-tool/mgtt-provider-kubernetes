@@ -52,3 +52,11 @@ go test -race ./...           # unit tests
 go test -tags=integration ./test/integration/...   # integration (needs kind)
 mgtt provider validate kubernetes                  # static correctness
 ```
+
+Integration tests also have a hermetic docker-in-docker runner that needs only `docker` on the host (no `kind`/`kubectl`/`go`):
+
+```bash
+cd test/integration && docker compose run --rm tester
+```
+
+See [`test/integration/README.md`](test/integration/README.md) for details.
