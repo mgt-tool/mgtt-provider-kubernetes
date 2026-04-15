@@ -15,6 +15,11 @@ import (
 )
 
 // Classify is a shell.ClassifyFn for kubectl. Pass to shell.Client.Classify.
+//
+// Real kubectl stderr varies by version, resource, and API group. This
+// classifier tries to catch the common shapes across recent (1.24+) kubectl
+// plus the "the server doesn't have a resource type" branch that fires when
+// a CRD is not installed or a resource name is misspelled.
 func Classify(stderr string, runErr error) error {
 	if runErr == nil {
 		return nil
@@ -24,15 +29,29 @@ func Classify(stderr string, runErr error) error {
 		return shell.EnvOnlyClassify(stderr, runErr)
 	}
 	first := firstLine(stderr)
+	lower := strings.ToLower(stderr)
 	switch {
-	case strings.Contains(stderr, "NotFound"):
+	case strings.Contains(stderr, "NotFound"),
+		strings.Contains(lower, "the server doesn't have a resource type"),
+		strings.Contains(lower, "the server could not find the requested resource"):
 		return fmt.Errorf("%w: %s", provider.ErrNotFound, first)
-	case strings.Contains(stderr, "Forbidden"), strings.Contains(stderr, "forbidden"):
+
+	case strings.Contains(stderr, "Forbidden"),
+		strings.Contains(lower, "forbidden"),
+		strings.Contains(lower, "unauthorized"),
+		strings.Contains(lower, "you must be logged in"),
+		strings.Contains(lower, "cannot list resource"),
+		strings.Contains(lower, "cannot get resource"):
 		return fmt.Errorf("%w: %s", provider.ErrForbidden, first)
+
 	case strings.Contains(stderr, "Unable to connect"),
-		strings.Contains(stderr, "i/o timeout"),
-		strings.Contains(stderr, "context deadline exceeded"),
-		strings.Contains(stderr, "connection refused"):
+		strings.Contains(lower, "i/o timeout"),
+		strings.Contains(lower, "context deadline exceeded"),
+		strings.Contains(lower, "connection refused"),
+		strings.Contains(lower, "no such host"),
+		strings.Contains(lower, "connection reset"),
+		strings.Contains(lower, "tls handshake timeout"),
+		strings.Contains(lower, "server returned http status 5"):
 		return fmt.Errorf("%w: %s", provider.ErrTransient, first)
 	}
 	return fmt.Errorf("%w: %s", provider.ErrEnv, first)

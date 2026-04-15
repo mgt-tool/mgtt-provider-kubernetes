@@ -7,20 +7,20 @@ facts:
       parse: "regex:.+"
       cost: low
   default_cpu_limit:
-    type: mgtt.int
+    type: mgtt.string
     ttl: 60s
-    description: default CPU limit in millicores
+    description: default CPU limit (kubectl quantity, e.g. "500m")
     probe:
       cmd: "kubectl -n {namespace} get limitrange {name} -o jsonpath={.spec.limits[0].default.cpu}"
-      parse: int
+      parse: string
       cost: low
   default_memory_limit:
-    type: mgtt.int
+    type: mgtt.string
     ttl: 60s
-    description: default memory limit in bytes
+    description: default memory limit (kubectl quantity, e.g. "512Mi")
     probe:
       cmd: "kubectl -n {namespace} get limitrange {name} -o jsonpath={.spec.limits[0].default.memory}"
-      parse: int
+      parse: string
       cost: low
 
 healthy:

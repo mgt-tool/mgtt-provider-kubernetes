@@ -2,8 +2,6 @@ package probes
 
 import (
 	"context"
-	"errors"
-	"strings"
 
 	"github.com/mgt-tool/mgtt/sdk/provider"
 	"github.com/mgt-tool/mgtt/sdk/provider/shell"
@@ -61,12 +59,17 @@ func registerWebhookConfig(r *provider.Registry, c *shell.Client, kind string) {
 
 // webhookBackendReachable returns true iff every webhook in the config
 // references a clientConfig.service whose backing Service exists. A single
-// missing backend means the whole config is potentially degraded.
+// missing backend means the whole config is potentially degraded. Service
+// tuples are deduped before probing so configs with N webhooks pointing at
+// the same backing Service (common with cert-manager, kyverno, etc.) only
+// incur one kubectl call per unique {namespace,name}.
 func webhookBackendReachable(ctx context.Context, c *shell.Client, d map[string]any) bool {
 	hooks, _ := d["webhooks"].([]any)
 	if len(hooks) == 0 {
 		return false
 	}
+	type svcKey struct{ ns, name string }
+	seen := map[svcKey]bool{}
 	for _, h := range hooks {
 		hm, _ := h.(map[string]any)
 		svc, _ := walk(hm, "clientConfig", "service").(map[string]any)
@@ -79,12 +82,12 @@ func webhookBackendReachable(ctx context.Context, c *shell.Client, d map[string]
 		if name == "" || ns == "" {
 			return false
 		}
-		_, err := KubectlJSON(ctx, c, "-n", ns, "get", "service", name)
-		if err != nil {
-			if errors.Is(err, provider.ErrNotFound) ||
-				strings.Contains(err.Error(), "not found") {
-				return false
-			}
+		k := svcKey{ns, name}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		if _, err := KubectlJSON(ctx, c, "-n", ns, "get", "service", name); err != nil {
 			return false
 		}
 	}

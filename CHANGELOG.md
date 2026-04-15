@@ -2,6 +2,29 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [2.3.1] — 2026-04-16
+
+Adversarial-review follow-ups. Requires mgtt `>=0.1.2` for the SDK back-compat fix.
+
+### Fixed
+
+- **Critical — quantity field type declarations.** `resourcequota.{cpu,memory,pods}_{used,hard}`, `node.{cpu,memory}_allocatable`, `pvc.capacity`, `limitrange.default_{cpu,memory}_limit`, and `persistentvolume.capacity` were declared `mgtt.int` but the runtime returns kubectl quantities as strings (`"500m"`, `"10Gi"`). YAML now declares `mgtt.string` uniformly — operators see exact kubectl output; engine healthy/state expressions compare honestly.
+- **Critical — resourcequota probe path alignment.** YAML used `{.status.used.cpu}`; the runtime correctly reads `status.used.requests.cpu`. YAML now matches.
+- **Critical — `custom_resource` flag parsing.** The vocabulary documented `{api_version}`, the runtime read `req.Extra["api"]`. Both names now work; `api_version` is canonical. The kubectl target composition no longer appends `/version` to the resource argument (kubectl rejects that form; the version lives in CRD discovery). Added `--scope cluster` to support cluster-scoped CRDs.
+- **Critical — webhooks.go stderr leak.** The redundant `strings.Contains(err.Error(), "not found")` check is gone; all classification now lives in `internal/kubeclassify/`.
+- **Critical — `kubeclassify` kubectl phrasing gaps.** Now recognizes "the server doesn't have a resource type" (CRD-not-installed → `ErrNotFound`), "Unauthorized"/"You must be logged in" (→ `ErrForbidden`), "no such host"/"TLS handshake timeout"/"connection reset"/5xx server responses (→ `ErrTransient`). Previously fell through to `ErrEnv`.
+- **`ingress.upstream_count`** now walks `spec.rules[].http.paths[].backend.service.name` (and `spec.defaultBackend.service.name`) and sums endpoints across the backing Services — the fact used to look up endpoints by ingress name, which returned 0 for almost every real ingress.
+- **`service.selector_match`** now probes for at least one matching pod instead of just reporting "selector is defined" — operators get the "selector matches nothing" signal they actually need.
+- **`webhookBackendReachable`** deduplicates service tuples so configs with N webhooks pointing at the same backing Service (cert-manager, kyverno) make one kubectl call per unique `{ns,name}`.
+- **`csidriver.node_count`** uses `kubectl -o jsonpath` with a predicate push-down instead of listing all CSINodes cluster-wide.
+- **`operator.webhook_healthy`** tries both `validatingwebhookconfiguration` and `mutatingwebhookconfiguration` by supplied name — operators with only a mutating webhook no longer false-report.
+- **`Exists` helper error policy.** `ErrForbidden` now yields `BoolResult(false)` with `Raw="forbidden"` so partial-RBAC callers don't hit hard errors. `ErrTransient` propagates up the stack.
+- **`roleRefExists` error policy.** Transient errors no longer flip a healthy binding into "dangling" — they propagate. `ErrForbidden` still reports `false` operationally.
+
+### Changed
+
+- **`requires.mgtt`** bumped to `>=0.1.2` so the restored `Request.Namespace` field is available.
+
 ## [2.3.0] — 2026-04-16
 
 **Full 37-of-37 vocabulary coverage.** All types declared in `types/*.yaml` now have runtime probe implementations.

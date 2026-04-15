@@ -1,9 +1,9 @@
 meta:
   name: kubernetes
-  version: 2.3.0
+  version: 2.3.1
   description: Kubernetes cluster resources — workloads, networking, storage, RBAC, webhooks, and scheduling
   requires:
-    mgtt: ">=0.1.0"
+    mgtt: ">=0.1.2"
   command: "$MGTT_PROVIDER_DIR/bin/mgtt-provider-kubernetes"
 
 hooks:

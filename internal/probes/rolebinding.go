@@ -30,7 +30,11 @@ func registerRoleBinding(r *provider.Registry, c *shell.Client) {
 			if err != nil {
 				return provider.Result{}, err
 			}
-			return provider.BoolResult(roleRefExists(ctx, c, req.Namespace, d)), nil
+			ok, err := roleRefExists(ctx, c, req.Namespace, d)
+			if err != nil {
+				return provider.Result{}, err
+			}
+			return provider.BoolResult(ok), nil
 		},
 	})
 }
@@ -54,42 +58,56 @@ func registerClusterRoleBinding(r *provider.Registry, c *shell.Client) {
 				return provider.Result{}, err
 			}
 			// ClusterRoleBindings only reference ClusterRoles.
-			return provider.BoolResult(roleRefExists(ctx, c, "", d)), nil
+			ok, err := roleRefExists(ctx, c, "", d)
+			if err != nil {
+				return provider.Result{}, err
+			}
+			return provider.BoolResult(ok), nil
 		},
 	})
 }
 
-// roleRefExists resolves metadata.roleRef {kind, name} and probes whether the
-// referenced role is actually present. bindingNamespace is "" for cluster-
-// scoped bindings.
+// roleRefExists resolves metadata.roleRef {kind, name} and probes whether
+// the referenced role is actually present. bindingNamespace is "" for
+// cluster-scoped bindings.
+//
+// Returns (true, nil) when the ref resolves, (false, nil) when it's
+// definitively missing (ErrNotFound), (false, nil) when the probing
+// credential cannot see the role (ErrForbidden — operationally a dangling
+// ref from this caller's perspective), and (_, err) on transient errors so
+// a network blip doesn't flip a healthy binding into "dangling".
 func roleRefExists(ctx context.Context, c *shell.Client, bindingNamespace string,
-	d map[string]any) bool {
+	d map[string]any) (bool, error) {
 	ref, _ := walk(d, "roleRef").(map[string]any)
 	kind, _ := ref["kind"].(string)
 	name, _ := ref["name"].(string)
 	if kind == "" || name == "" {
-		return false
+		return false, nil
 	}
 	args := []string{"get"}
 	switch kind {
 	case "Role":
 		if bindingNamespace == "" {
-			return false // invalid: ClusterRoleBinding can't reference a Role
+			// Invalid: a ClusterRoleBinding can't reference a Role.
+			return false, nil
 		}
 		args = append(args, "-n", bindingNamespace, "role", name)
 	case "ClusterRole":
 		args = append(args, "clusterrole", name)
 	default:
-		return false
+		return false, nil
 	}
 	_, err := KubectlJSON(ctx, c, args...)
-	if err == nil {
-		return true
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, provider.ErrNotFound):
+		return false, nil
+	case errors.Is(err, provider.ErrForbidden):
+		return false, nil
+	case errors.Is(err, provider.ErrTransient):
+		return false, err
 	}
-	if errors.Is(err, provider.ErrNotFound) {
-		return false
-	}
-	// Any other error (forbidden, transient) is treated as "unknown → false"
-	// at this fact level; callers see the error from other facts if needed.
-	return false
+	// Unknown classification: bubble up rather than silently decide.
+	return false, err
 }

@@ -7,12 +7,12 @@ facts:
       parse: string
       cost: low
   capacity:
-    type: mgtt.int
+    type: mgtt.string
     ttl: 60s
-    description: capacity in bytes
+    description: capacity (kubectl quantity, e.g. "10Gi")
     probe:
       cmd: "kubectl get pv {name} -o jsonpath={.spec.capacity.storage}"
-      parse: int
+      parse: string
       cost: low
   reclaim_policy:
     type: mgtt.string
