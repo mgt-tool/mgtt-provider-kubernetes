@@ -1,6 +1,6 @@
 meta:
   name: kubernetes
-  version: 2.1.0
+  version: 2.2.0
   description: Kubernetes cluster resources — workloads, networking, storage, RBAC, webhooks, and scheduling
   requires:
     mgtt: ">=0.1.0"

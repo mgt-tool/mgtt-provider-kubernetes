@@ -1,6 +1,36 @@
 package probes
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+func TestAgeSeconds_RoundTrip(t *testing.T) {
+	ts := time.Now().Add(-90 * time.Second).UTC().Format(time.RFC3339)
+	got := AgeSeconds(ts)
+	if got < 88 || got > 92 {
+		t.Fatalf("expected ~90, got %d", got)
+	}
+}
+
+func TestAgeSeconds_EmptyAndBad(t *testing.T) {
+	if AgeSeconds("") != 0 {
+		t.Fatal("empty should be 0")
+	}
+	if AgeSeconds("not a timestamp") != 0 {
+		t.Fatal("garbage should be 0")
+	}
+}
+
+func TestCountMapKeys(t *testing.T) {
+	data := map[string]any{"data": map[string]any{"a": "1", "b": "2", "c": "3"}}
+	if got := CountMapKeys(data, "data"); got != 3 {
+		t.Fatalf("got %d", got)
+	}
+	if got := CountMapKeys(data, "missing"); got != 0 {
+		t.Fatalf("missing path should be 0, got %d", got)
+	}
+}
 
 func TestJSONInt_Normal(t *testing.T) {
 	data := map[string]any{"status": map[string]any{"readyReplicas": float64(3)}}
