@@ -280,12 +280,12 @@ func TestScenario_NotFound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 4 — Dangling RoleBinding (Tier-3 composite probe)
+// Scenario 4 — Dangling RoleBinding
 // ---------------------------------------------------------------------------
 //
 // The fixture installs a RoleBinding that references a Role that does NOT
 // exist. `kubectl describe rolebinding` shows the binding as healthy. The
-// Tier-3 role_ref_exists probe surfaces the dangling reference.
+// role_ref_exists probe surfaces the dangling reference.
 
 func TestScenario_DanglingRoleBinding(t *testing.T) {
 	const ns = "mgtt-it-rbac"
@@ -312,7 +312,7 @@ func TestScenario_DanglingRoleBinding(t *testing.T) {
 		out := probeNS(t, binary, "reader-bind", "role_ref_exists", ns, "rolebinding")
 		r := parseProbe(t, out)
 		if r.Value != false {
-			t.Fatalf("dangling ref: want false, got %v — the Tier-3 composite probe failed to detect the missing Role", r.Value)
+			t.Fatalf("dangling ref: want false, got %v — the role_ref_exists probe failed to detect the missing Role", r.Value)
 		}
 	})
 
