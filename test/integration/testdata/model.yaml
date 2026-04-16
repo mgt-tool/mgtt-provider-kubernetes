@@ -2,7 +2,7 @@ meta:
   name: demo
   version: "1.0"
   providers:
-    - kubernetes
+    - mgt-tool/kubernetes
   vars:
     namespace: default
 
