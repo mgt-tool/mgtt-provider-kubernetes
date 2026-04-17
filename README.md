@@ -6,7 +6,7 @@ Version **2.3.0** — built on the [mgtt provider SDK](https://github.com/mgt-to
 
 ## Vocabulary
 
-The vocabulary (what the engine reasons about) lives in `provider.yaml` plus one file per type under `types/`. All 37 types have runtime probes.
+The vocabulary (what the engine reasons about) lives in `manifest.yaml` plus one file per type under `types/`. All 37 types have runtime probes.
 
 | Group | Types |
 |---|---|
@@ -38,7 +38,7 @@ The image is published by [this repo's CI](./.github/workflows/docker.yml) on ev
 
 ## Capabilities
 
-When installed as an image, this provider declares the following runtime capabilities in [`provider.yaml`](./provider.yaml) (top-level `needs:`):
+When installed as an image, this provider declares the following runtime capabilities in [`manifest.yaml`](./manifest.yaml) (top-level `needs:`):
 
 | Capability | Effect at probe time |
 |---|---|
@@ -50,7 +50,7 @@ For a non-default kubeconfig path, override the `kubectl` capability in `$MGTT_H
 
 ## Auth
 
-Uses your existing kubeconfig: `KUBECONFIG`, `~/.kube/config`, or in-cluster service account. The provider is **read-only** — `provider.yaml` omits `read_only:` (defaults to `true`), and every probe is a `kubectl get`/`list`/`watch`. Operators should bind a ServiceAccount whose ClusterRole matches, with no `create`/`update`/`delete`/`patch`/`deletecollection` verbs on the probed resources.
+Uses your existing kubeconfig: `KUBECONFIG`, `~/.kube/config`, or in-cluster service account. The provider is **read-only** — `manifest.yaml` omits `read_only:` (defaults to `true`), and every probe is a `kubectl get`/`list`/`watch`. Operators should bind a ServiceAccount whose ClusterRole matches, with no `create`/`update`/`delete`/`patch`/`deletecollection` verbs on the probed resources.
 
 ## Architecture
 

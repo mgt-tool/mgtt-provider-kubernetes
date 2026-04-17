@@ -122,7 +122,7 @@ func TestProbeRunner_AgainstRealCluster(t *testing.T) {
 // ---------------------------------------------------------------------------
 //
 // This demonstrates the integration contract: mgtt knows nothing about
-// kubernetes — it just loads provider.yaml + types/ from $MGTT_HOME and calls
+// kubernetes — it just loads manifest.yaml + types/ from $MGTT_HOME and calls
 // the runner binary via the declared `command` path.
 
 func TestMgttDocker_ProviderInspect(t *testing.T) {
@@ -333,7 +333,7 @@ func dockerRun(image, mgttHome, workspace string, args ...string) ([]byte, error
 }
 
 // stagedMgttHome builds the provider binary, then lays out a directory with
-// the layout mgtt expects: $MGTT_HOME/providers/kubernetes/{provider.yaml,
+// the layout mgtt expects: $MGTT_HOME/providers/kubernetes/{manifest.yaml,
 // types/, bin/}. Returns an absolute path safe to bind-mount into docker.
 func stagedMgttHome(t *testing.T) string {
 	t.Helper()
@@ -344,8 +344,8 @@ func stagedMgttHome(t *testing.T) string {
 		t.Fatal(err)
 	}
 
-	// Copy provider.yaml, types/, hooks/.
-	for _, rel := range []string{"provider.yaml"} {
+	// Copy manifest.yaml, types/, hooks/.
+	for _, rel := range []string{"manifest.yaml"} {
 		if err := copyFile(filepath.Join(root, rel), filepath.Join(dest, rel)); err != nil {
 			t.Fatal(err)
 		}

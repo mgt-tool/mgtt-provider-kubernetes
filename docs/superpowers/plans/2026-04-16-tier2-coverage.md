@@ -33,7 +33,7 @@ Copy the Tier-1 patterns verbatim:
 - Reuse `helpers.go:JSONInt`, `JSONBool`, `JSONString`, `ConditionStatus`, `CountList`, `MaxRestartCount`, etc. Extend helpers only if a Tier-2 type needs a shape not yet seen (e.g. `cronjob.last_successful_time` wants an `age_seconds` helper that parses RFC3339 and subtracts from `time.Now()`).
 - Register each type in `helpers.go:Register` alongside the Tier-1 registrations.
 - Unit tests per fact using the same fake-client pattern as `deployment_test.go`.
-- No changes to `main.go`, `provider.yaml`, or the SDK.
+- No changes to `main.go`, `manifest.yaml`, or the SDK.
 
 Commit per type — 10 commits total — so the history is bisectable if one type regresses.
 

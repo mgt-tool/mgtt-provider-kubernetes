@@ -27,6 +27,6 @@ RUN apk add --no-cache ca-certificates curl \
  && chmod +x /usr/local/bin/kubectl \
  && kubectl version --client
 COPY --from=build /out/provider /usr/local/bin/provider
-COPY provider.yaml /provider.yaml
+COPY manifest.yaml /manifest.yaml
 COPY types /types
 ENTRYPOINT ["/usr/local/bin/provider"]
