@@ -13,7 +13,7 @@ mgtt itself is type-agnostic: it consumes any provider that conforms to the prov
 
 ```
 providers/kubernetes/
-  provider.yaml              # meta, auth, variables, hooks
+  manifest.yaml              # meta, auth, variables, hooks
   hooks/install.sh           # build hook
   main.go                    # runner binary source
   types/
@@ -56,9 +56,9 @@ providers/kubernetes/
     custom_resource.yaml
 ```
 
-`provider.yaml` carries meta-only definitions. Each file in `types/` is one type definition; the filename (minus `.yaml`) is the type name. A provider may alternatively inline types under a `types:` key in `provider.yaml` (single-file form).
+`manifest.yaml` carries meta-only definitions. Each file in `types/` is one type definition; the filename (minus `.yaml`) is the type name. A provider may alternatively inline types under a `types:` key in `manifest.yaml` (single-file form).
 
-### provider.yaml
+### manifest.yaml
 
 ```yaml
 meta:
