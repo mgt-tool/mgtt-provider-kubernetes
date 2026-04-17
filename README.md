@@ -43,7 +43,8 @@ When installed as an image, this provider declares the following runtime capabil
 | Capability | Effect at probe time |
 |---|---|
 | `kubectl` | Mounts `~/.kube` read-only; forwards `KUBECONFIG` so in-container `kubectl` picks up the same context the operator's CLI uses |
-| `network` | `--network host` — container reaches the cluster API server (in-cluster URLs, private hostnames, etc.) |
+
+Plus `network: host` so the container reaches the cluster API server (in-cluster URLs, private hostnames, service CIDR DNS).
 
 Operators with a non-default kubeconfig path can override `kubectl` in `$MGTT_HOME/capabilities.yaml`, and refuse specific caps via `MGTT_IMAGE_CAPS_DENY=...`. See the [full capabilities reference](https://github.com/mgt-tool/mgtt/blob/main/docs/reference/image-capabilities.md). Git-installed invocations don't go through this layer — the binary runs with the operator's full environment.
 
