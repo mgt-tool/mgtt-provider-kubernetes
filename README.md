@@ -50,7 +50,7 @@ Operators with a non-default kubeconfig path can override `kubectl` in `$MGTT_HO
 
 ## Auth
 
-Uses your existing kubeconfig: `KUBECONFIG`, `~/.kube/config`, or in-cluster service account. The provider is **read-only** — `auth.access.writes: none` in `provider.yaml`. Operators should bind a ServiceAccount whose ClusterRole has only `get`/`list`/`watch` verbs on the probed resources.
+Uses your existing kubeconfig: `KUBECONFIG`, `~/.kube/config`, or in-cluster service account. The provider is **read-only** — `provider.yaml` omits `read_only:` (defaults to `true`), and every probe is a `kubectl get`/`list`/`watch`. Operators should bind a ServiceAccount whose ClusterRole matches, with no `create`/`update`/`delete`/`patch`/`deletecollection` verbs on the probed resources.
 
 ## Architecture
 
