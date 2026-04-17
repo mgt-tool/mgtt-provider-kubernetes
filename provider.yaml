@@ -23,9 +23,3 @@ variables:
     required: false
     default: default
 
-auth:
-  strategy: environment
-  reads_from: [KUBECONFIG, ~/.kube/config, in-cluster service account]
-  access:
-    probes: kubectl read-only
-    writes: none
