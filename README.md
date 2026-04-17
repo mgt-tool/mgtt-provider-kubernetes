@@ -24,11 +24,19 @@ See `docs/design.md` for the per-type state machines.
 
 ## Install
 
+Two equivalent paths — pick whichever fits your workflow:
+
 ```bash
+# Git + host toolchain (requires Go 1.25+, warns if kubectl not on PATH)
 mgtt provider install kubernetes
+
+# Pre-built Docker image (ships kubectl inside; digest-pinned)
+mgtt provider install --image ghcr.io/mgt-tool/mgtt-provider-kubernetes:2.3.1@sha256:...
 ```
 
-The install hook gates on Go 1.21+ and warns if `kubectl` is not yet on PATH at install time.
+The image is published by [this repo's CI](./.github/workflows/docker.yml) on every push to `main` and every `v*` tag. Find the current digest on the [GHCR package page](https://github.com/mgt-tool/mgtt-provider-kubernetes/pkgs/container/mgtt-provider-kubernetes).
+
+Runtime: the image declares `image.needs: [kubectl, network]` in `provider.yaml`; at probe time mgtt expands that into a read-only `~/.kube` mount, a `KUBECONFIG` env forward, and `--network host` so the container can reach the cluster API. See [Image Capabilities](https://github.com/mgt-tool/mgtt/blob/main/docs/reference/image-capabilities.md) for the full contract and operator overrides (e.g., non-default kubeconfig paths).
 
 ## Auth
 
