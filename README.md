@@ -46,7 +46,7 @@ When installed as an image, this provider declares the following runtime capabil
 
 Plus `network: host` so the container reaches the cluster API server (in-cluster URLs, private hostnames, service CIDR DNS).
 
-Operators with a non-default kubeconfig path can override `kubectl` in `$MGTT_HOME/capabilities.yaml`, and refuse specific caps via `MGTT_IMAGE_CAPS_DENY=...`. See the [full capabilities reference](https://github.com/mgt-tool/mgtt/blob/main/docs/reference/image-capabilities.md). Git-installed invocations don't go through this layer — the binary runs with the operator's full environment.
+For a non-default kubeconfig path, override the `kubectl` capability in `$MGTT_HOME/capabilities.yaml`. See the [capability reference](https://github.com/mgt-tool/mgtt/blob/main/docs/reference/image-capabilities.md).
 
 ## Auth
 
