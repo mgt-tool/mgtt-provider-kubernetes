@@ -36,7 +36,16 @@ mgtt provider install --image ghcr.io/mgt-tool/mgtt-provider-kubernetes:2.3.1@sh
 
 The image is published by [this repo's CI](./.github/workflows/docker.yml) on every push to `main` and every `v*` tag. Find the current digest on the [GHCR package page](https://github.com/mgt-tool/mgtt-provider-kubernetes/pkgs/container/mgtt-provider-kubernetes).
 
-Runtime: the image declares `image.needs: [kubectl, network]` in `provider.yaml`; at probe time mgtt expands that into a read-only `~/.kube` mount, a `KUBECONFIG` env forward, and `--network host` so the container can reach the cluster API. See [Image Capabilities](https://github.com/mgt-tool/mgtt/blob/main/docs/reference/image-capabilities.md) for the full contract and operator overrides (e.g., non-default kubeconfig paths).
+## Capabilities
+
+When installed as an image, this provider declares the following runtime capabilities in [`provider.yaml`](./provider.yaml) (`image.needs`):
+
+| Capability | Effect at probe time |
+|---|---|
+| `kubectl` | Mounts `~/.kube` read-only; forwards `KUBECONFIG` so in-container `kubectl` picks up the same context the operator's CLI uses |
+| `network` | `--network host` — container reaches the cluster API server (in-cluster URLs, private hostnames, etc.) |
+
+Operators with a non-default kubeconfig path can override `kubectl` in `$MGTT_HOME/capabilities.yaml`, and refuse specific caps via `MGTT_IMAGE_CAPS_DENY=...`. See the [full capabilities reference](https://github.com/mgt-tool/mgtt/blob/main/docs/reference/image-capabilities.md). Git-installed invocations don't go through this layer — the binary runs with the operator's full environment.
 
 ## Auth
 
