@@ -179,7 +179,7 @@ mgtt-provider-kubernetes/
     ci.yml                             # lint + unit on every push; integration on PR to main
     release.yml                        # tag-triggered: build cross-platform binaries, attach to release
   CHANGELOG.md                         # new: Keep-a-Changelog format
-  VERSION                              # new: single source of truth for semver (matches provider.yaml:meta.version)
+  VERSION                              # new: single source of truth for semver (matches manifest.yaml:meta.version)
 ```
 
 ---
@@ -2519,14 +2519,14 @@ git commit -m "docs: README reflects full type coverage + new subcommands"
 2.1.0
 ```
 
-- [ ] **Step 2: Update `provider.yaml` meta.version to 2.1.0.**
+- [ ] **Step 2: Update `manifest.yaml` meta.version to 2.1.0.**
 
 - [ ] **Step 3: Update CHANGELOG** — move `[Unreleased]` contents to `[2.1.0] — 2026-04-15`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add VERSION provider.yaml CHANGELOG.md
+git add VERSION manifest.yaml CHANGELOG.md
 git commit -m "release: v2.1.0 — full runtime coverage, robustness, diagnostics"
 ```
 
