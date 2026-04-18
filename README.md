@@ -2,7 +2,7 @@
 
 Kubernetes provider for [mgtt](https://github.com/mgt-tool/mgtt) — the model guided troubleshooting tool.
 
-Version **2.3.0** — built on the [mgtt provider SDK](https://github.com/mgt-tool/mgtt/tree/main/sdk/provider) (requires mgtt ≥ 0.1.0).
+Version **3.0.0** — built on the [mgtt provider SDK](https://github.com/mgt-tool/mgtt/tree/main/sdk/provider) (requires mgtt ≥ 0.2.0).
 
 ## Vocabulary
 
@@ -31,7 +31,7 @@ Two equivalent paths — pick whichever fits your workflow:
 mgtt provider install kubernetes
 
 # Pre-built Docker image (ships kubectl inside; digest-pinned)
-mgtt provider install --image ghcr.io/mgt-tool/mgtt-provider-kubernetes:2.3.1@sha256:...
+mgtt provider install --image ghcr.io/mgt-tool/mgtt-provider-kubernetes:3.0.0@sha256:...
 ```
 
 The image is published by [this repo's CI](./.github/workflows/docker.yml) on every push to `main` and every `v*` tag. Find the current digest on the [GHCR package page](https://github.com/mgt-tool/mgtt-provider-kubernetes/pkgs/container/mgtt-provider-kubernetes).
