@@ -1,25 +1,28 @@
 meta:
   name: kubernetes
-  version: 2.3.2
+  version: 3.0.0
   description: Kubernetes cluster resources — workloads, networking, storage, RBAC, webhooks, and scheduling
   requires:
-    mgtt: ">=0.1.2"
-  command: "$MGTT_PROVIDER_DIR/bin/mgtt-provider-kubernetes"
+    mgtt: ">=0.2.0"
 
 # Capabilities the provider needs at probe time — host packages
 # and credential chains. Image installs satisfy these via docker-run
 # bind mounts and env forwards; git installs inherit them from the
-# operator's shell. `network:` is a separate runtime-isolation knob.
+# operator's shell. `network_mode:` is a separate runtime-isolation knob.
 # See mgtt docs/reference/image-capabilities.md for the vocabulary.
-needs: [kubectl]
-network: host
-hooks:
-  install: hooks/install.sh
-  uninstall: hooks/uninstall.sh
+runtime:
+  needs: [kubectl]
+  network_mode: host
+
+install:
+  source:
+    build: hooks/install.sh
+    clean: hooks/uninstall.sh
+  image:
+    repository: ghcr.io/mgt-tool/mgtt-provider-kubernetes
 
 variables:
   namespace:
     description: kubernetes namespace
     required: false
     default: default
-
