@@ -1854,7 +1854,13 @@ failure_modes:
 
 #### operator
 
-Variables: `name` (operator deployment name), `crd_name` (expected CRD), `operator_namespace` (defaults to `{namespace}`).
+Variables the component may supply (meta.vars, or component-level vars):
+
+- `namespace` (required, inherited from meta.vars) — namespace the operator Deployment lives in.
+- `crd` (optional) — full CRD name (e.g. `externalsecrets.external-secrets.io`). When unset, `crd_registered` returns true unconditionally.
+- `webhook` (optional) — name of the ValidatingWebhookConfiguration or MutatingWebhookConfiguration the operator serves. When unset, `webhook_healthy` returns true unconditionally.
+
+The component key is treated as the operator Deployment name; set the component's `resource:` field when the live Deployment uses a different name.
 
 ```yaml
 facts:
@@ -1862,31 +1868,34 @@ facts:
     type: mgtt.bool
     ttl: 30s
     probe:
-      cmd: "kubectl -n {operator_namespace} get deploy {name} -o jsonpath={.status.conditions[?(@.type=='Available')].status}"
+      cmd: "kubectl -n {namespace} get deploy {name} -o json"
       parse: bool
       cost: low
+    description: ≥1 ready replica and condition Available=True
   crd_registered:
     type: mgtt.bool
     ttl: 60s
     probe:
-      cmd: "kubectl get crd {crd_name} -o jsonpath={.metadata.name}"
-      parse: "regex:.+"
+      cmd: "kubectl get customresourcedefinition {crd}"
+      parse: bool
       cost: low
+    description: CRD named by --crd exists; returns true when --crd unset
   webhook_healthy:
     type: mgtt.bool
     ttl: 30s
-    description: whether operator webhook service has endpoints
     probe:
-      cmd: "kubectl -n {operator_namespace} get endpoints {name}-webhook-service -o jsonpath={.subsets[0].addresses[0].ip}"
-      parse: "regex:.+"
+      cmd: "kubectl get {validating|mutating}webhookconfiguration {webhook} && kubectl -n <svc-ns> get endpoints <svc-name>"
+      parse: bool
       cost: medium
+    description: backend svc of the webhook named by --webhook has ready endpoints; returns true when --webhook unset
   restart_count:
     type: mgtt.int
     ttl: 30s
     probe:
-      cmd: "kubectl -n {operator_namespace} get pods -l app={name} -o jsonpath={.items[0].status.containerStatuses[0].restartCount}"
+      cmd: "kubectl -n {namespace} get pods -l app={name} -o json"
       parse: int
       cost: low
+    description: max container restart count across pods selected by app={name}
 
 healthy:
   - deployment_ready == true
