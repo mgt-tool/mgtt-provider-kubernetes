@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Alex Kunich
+# SPDX-License-Identifier: Apache-2.0
 set -e
 
 # Start the inner Docker daemon in the background.

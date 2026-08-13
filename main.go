@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Alex Kunich
+// SPDX-License-Identifier: Apache-2.0
+
 // Command mgtt-provider-kubernetes is a kubernetes provider runner binary
 // for mgtt. All plumbing (argv parsing, JSON output, exit codes, timeouts,
 // size caps, status:not_found translation) lives in the mgtt SDK at

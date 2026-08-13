@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Alex Kunich
+// SPDX-License-Identifier: Apache-2.0
+
 // Package probes holds the kubernetes-specific probe implementations and
 // JSON shape helpers. main() wires them into a provider.Registry and calls
 // provider.Main.

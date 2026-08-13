@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Alex Kunich
+// SPDX-License-Identifier: Apache-2.0
+
 // Package kubeclassify maps kubectl stderr phrasing to the provider SDK's
 // sentinel errors. This is the one place in the provider that encodes
 // kubectl-specific vocabulary — everything else consumes the SDK's
