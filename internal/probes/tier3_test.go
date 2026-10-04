@@ -371,3 +371,34 @@ func TestLease_RenewAge(t *testing.T) {
 		t.Fatalf("want node-1, got %v", res.Value)
 	}
 }
+
+// selector_value reads the one selector label the component names with
+// selector_key: what a while: guard follows to the live blue/green color.
+func TestService_SelectorValue(t *testing.T) {
+	svc := map[string]any{"spec": map[string]any{"selector": map[string]any{"app": "shop", "color": "blue"}}}
+	for name, tc := range map[string]struct {
+		key  string
+		want any
+	}{
+		"label present": {"color", "blue"},
+		"label absent":  {"tier", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res := probeOnce(t, registerService, fakeKubectl(t, svc), provider.Request{
+				Type: "service", Name: "shop", Fact: "selector_value", Extra: map[string]string{"selector_key": tc.key},
+			})
+			if res.Value != tc.want {
+				t.Fatalf("got %v, want %v", res.Value, tc.want)
+			}
+		})
+	}
+}
+
+func TestService_SelectorValue_NeedsKey(t *testing.T) {
+	r := provider.NewRegistry()
+	registerService(r, fakeKubectl(t, map[string]any{}))
+	_, err := r.Probe(context.Background(), provider.Request{Type: "service", Name: "shop", Fact: "selector_value"})
+	if !errors.Is(err, provider.ErrUsage) {
+		t.Fatalf("want ErrUsage without selector_key, got %v", err)
+	}
+}
