@@ -16,17 +16,18 @@ facts:
 
 healthy:
   - phase == Active
+  - exists == true
 
 states:
+  active:
+    when: "phase == Active & exists == true"
+    description: namespace active
   terminating:
     when: "phase == Terminating"
     description: namespace being deleted
   missing:
     when: "exists == false"
     description: namespace does not exist
-  active:
-    when: "phase == Active"
-    description: namespace active
 
 default_active_state: active
 

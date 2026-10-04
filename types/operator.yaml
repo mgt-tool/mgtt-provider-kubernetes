@@ -55,8 +55,12 @@ facts:
 healthy:
   - deployment_ready == true
   - crd_registered == true
+  - restart_count <= 3
 
 states:
+  ready:
+    when: "deployment_ready == true & crd_registered == true & restart_count <= 3"
+    description: operator running and CRD registered
   crd_missing:
     when: "crd_registered == false"
     description: custom resource definition not registered
@@ -66,9 +70,6 @@ states:
   degraded:
     when: "restart_count > 3"
     description: operator pod restarting frequently
-  ready:
-    when: "deployment_ready == true & crd_registered == true"
-    description: operator running and CRD registered
 
 default_active_state: ready
 

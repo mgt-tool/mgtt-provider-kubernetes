@@ -34,15 +34,15 @@ healthy:
   - renew_age < lease_duration
 
 states:
+  held:
+    when: "exists == true & renew_age < lease_duration"
+    description: lease actively held
   missing:
     when: "exists == false"
     description: lease does not exist
   expired:
-    when: "renew_age > lease_duration"
+    when: "renew_age >= lease_duration"
     description: holder has not renewed — leader election stale
-  held:
-    when: "exists == true"
-    description: lease actively held
 
 default_active_state: held
 

@@ -46,6 +46,9 @@ healthy:
   - condition_failed == false
 
 states:
+  complete:
+    when: "condition_failed == false"
+    description: job finished successfully
   failed:
     when: "condition_failed == true"
     description: job has permanently failed
@@ -55,9 +58,6 @@ states:
   running:
     when: "active > 0"
     description: job pods executing
-  complete:
-    when: "condition_complete == true"
-    description: job finished successfully
 
 default_active_state: complete
 

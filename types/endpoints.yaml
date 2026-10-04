@@ -18,15 +18,15 @@ healthy:
   - ready_count > 0
 
 states:
+  live:
+    when: "ready_count > 0"
+    description: all addresses ready
   empty:
     when: "ready_count == 0"
     description: no ready addresses
   partial:
     when: "not_ready_count > 0 & ready_count > 0"
     description: some addresses not ready
-  live:
-    when: "ready_count > 0 & not_ready_count == 0"
-    description: all addresses ready
 
 default_active_state: live
 

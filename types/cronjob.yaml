@@ -33,8 +33,12 @@ facts:
 healthy:
   - suspended == false
   - last_successful_age < 7200
+  - last_schedule_age <= 3600
 
 states:
+  live:
+    when: "suspended == false & last_successful_age < 7200 & last_schedule_age <= 3600"
+    description: scheduling normally
   suspended:
     when: "suspended == true"
     description: manually suspended
@@ -42,14 +46,11 @@ states:
     when: "last_schedule_age > 3600"
     description: has not fired in over an hour
   failing:
-    when: "last_successful_age > 7200 & active_jobs == 0"
+    when: "last_successful_age >= 7200 & active_jobs == 0"
     description: recent jobs not succeeding
   active:
     when: "active_jobs > 0"
     description: job currently running
-  live:
-    when: "suspended == false"
-    description: scheduling normally
 
 default_active_state: live
 

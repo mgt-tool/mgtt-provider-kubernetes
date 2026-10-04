@@ -58,13 +58,16 @@ facts:
       cost: low
 
 healthy:
-  - ready_replicas == desired_replicas
+  - ready_replicas >= desired_replicas   # more ready than desired: a scale-down in progress
   - condition_available == true
   - restart_count < 5
 
 states:
+  live:
+    when: "ready_replicas >= desired_replicas & condition_available == true & restart_count < 5"
+    description: all replicas ready
   crashed:
-    when: "restart_count > 5 & ready_replicas < desired_replicas"
+    when: "restart_count >= 5"
     description: crash-looping pods
   rollout_stuck:
     when: "updated_replicas < desired_replicas & condition_progressing == false"
@@ -73,14 +76,11 @@ states:
     when: "updated_replicas < desired_replicas"
     description: rollout in progress
   degraded:
-    when: "ready_replicas < desired_replicas"
+    when: "ready_replicas < desired_replicas | condition_available == false"
     description: some pods not ready
   scaled_to_zero:
     when: "desired_replicas == 0"
     description: intentionally drained
-  live:
-    when: "ready_replicas == desired_replicas"
-    description: all replicas ready
 
 default_active_state: live
 

@@ -33,15 +33,15 @@ healthy:
   - exists == true
 
 states:
+  active:
+    when: "exists == true"
+    description: policy applied to pods
   missing:
     when: "exists == false"
     description: network policy does not exist
   no_targets:
     when: "pod_selector_match_count == 0"
     description: policy targets no pods
-  active:
-    when: "exists == true & pod_selector_match_count > 0"
-    description: policy applied to pods
 
 default_active_state: active
 

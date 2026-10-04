@@ -39,17 +39,18 @@ facts:
 
 healthy:
   - endpoint_count > 0
+  - "type != LoadBalancer | external_ip_assigned == true"
 
 states:
+  live:
+    when: "endpoint_count > 0 & (type != LoadBalancer | external_ip_assigned == true)"
+    description: routing traffic
   no_endpoints:
     when: "endpoint_count == 0"
     description: selector matches nothing
   pending_lb:
     when: "type == LoadBalancer & external_ip_assigned == false"
     description: load balancer not yet provisioned
-  live:
-    when: "endpoint_count > 0"
-    description: routing traffic
 
 default_active_state: live
 

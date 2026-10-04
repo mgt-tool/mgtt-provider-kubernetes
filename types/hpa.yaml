@@ -61,8 +61,11 @@ healthy:
   - scaling_active == true
 
 states:
+  live:
+    when: "able_to_scale == true & scaling_active == true"
+    description: autoscaler operating normally
   unable_to_scale:
-    when: "able_to_scale == false"
+    when: "able_to_scale == false | scaling_active == false"
     description: HPA cannot adjust replicas
   at_max:
     when: "current_replicas == max_replicas & cpu_current > cpu_target"
@@ -70,9 +73,6 @@ states:
   scaling:
     when: "current_replicas != desired_replicas"
     description: scaling in progress
-  live:
-    when: "scaling_active == true & able_to_scale == true"
-    description: autoscaler operating normally
 
 default_active_state: live
 
