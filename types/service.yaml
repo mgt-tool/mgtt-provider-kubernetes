@@ -21,6 +21,14 @@ facts:
       cmd: "kubectl -n {namespace} get endpoints {name} -o jsonpath={.subsets[0].addresses[0].ip}"
       parse: "regex:.+"
       cost: low
+  selector_value:
+    type: mgtt.string
+    ttl: 30s
+    description: value of the selector label named by the selector_key var (e.g. color → blue); empty when the selector has no such label
+    probe:
+      cmd: "kubectl -n {namespace} get svc {name} -o jsonpath={.spec.selector.{selector_key}}"
+      parse: string
+      cost: low
   external_ip_assigned:
     type: mgtt.bool
     ttl: 30s

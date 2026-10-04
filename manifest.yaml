@@ -26,3 +26,6 @@ variables:
     description: kubernetes namespace
     required: false
     default: default
+  selector_key:
+    description: the Service selector label service.selector_value reads, e.g. color for a blue/green pair; set per component
+    required: false

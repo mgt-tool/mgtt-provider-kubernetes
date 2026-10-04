@@ -5,6 +5,7 @@ package probes
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mgt-tool/mgtt/sdk/provider"
 	"github.com/mgt-tool/mgtt/sdk/provider/shell"
@@ -53,6 +54,24 @@ func registerService(r *provider.Registry, c *shell.Client) {
 			}
 			items, _ := pods["items"].([]any)
 			return provider.BoolResult(len(items) > 0), nil
+		},
+		"selector_value": func(ctx context.Context, req provider.Request) (provider.Result, error) {
+			// The value of one selector label, named by the component's
+			// selector_key var: with selector_key: color, a Service that
+			// selects color=blue answers "blue". It is what a model's
+			// while: guard reads to follow the live color of a blue/green
+			// pair. A selector without that label answers "".
+			key := req.Extra["selector_key"]
+			if key == "" {
+				return provider.Result{}, fmt.Errorf("%w: selector_value needs the selector_key var (the label to read, e.g. color)", provider.ErrUsage)
+			}
+			d, err := getSvc(ctx, req)
+			if err != nil {
+				return provider.Result{}, err
+			}
+			sel, _ := walk(d, "spec", "selector").(map[string]any)
+			v, _ := sel[key].(string)
+			return provider.StringResult(v), nil
 		},
 		"external_ip_assigned": func(ctx context.Context, req provider.Request) (provider.Result, error) {
 			d, err := getSvc(ctx, req)
