@@ -39,13 +39,13 @@ import (
 
 // Provider-specific fixtures. Update these alongside manifest.yaml.
 const (
-	imgLocalTag    = "mgtt-provider-kubernetes-it:test"
+	imgLocalTag          = "mgtt-provider-kubernetes-it:test"
 	capsTestProviderName = "kubernetes"
-	expectCaps     = "kubectl"
-	expectNetwork  = "host"
-	registryPort   = "15802"
-	registryName   = "mgtt-provider-kubernetes-it-registry"
-	localPushTag   = "localhost:15802/mgtt-provider-kubernetes:it"
+	expectCaps           = "kubectl"
+	expectNetwork        = "host"
+	registryPort         = "15802"
+	registryName         = "mgtt-provider-kubernetes-it-registry"
+	localPushTag         = "localhost:15802/mgtt-provider-kubernetes:it"
 )
 
 func TestImageInstall_Capabilities(t *testing.T) {
