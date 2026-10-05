@@ -30,17 +30,18 @@ facts:
 
 healthy:
   - allowed_disruptions > 0
+  - current_healthy >= desired_healthy
 
 states:
+  live:
+    when: "allowed_disruptions > 0 & current_healthy >= desired_healthy"
+    description: disruption budget satisfied
   blocked:
-    when: "allowed_disruptions == 0 & current_healthy <= desired_healthy"
+    when: "allowed_disruptions == 0"
     description: no disruptions allowed — blocks node drains
   violated:
     when: "current_healthy < desired_healthy"
     description: fewer healthy pods than minimum
-  live:
-    when: "allowed_disruptions > 0"
-    description: disruption budget satisfied
 
 default_active_state: live
 

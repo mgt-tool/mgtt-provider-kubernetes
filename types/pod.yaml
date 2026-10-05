@@ -47,11 +47,14 @@ healthy:
   - restart_count < 5
 
 states:
+  running:
+    when: "ready == true & restart_count < 5"
+    description: pod running and ready
   oom_killed:
     when: "oom_killed == true"
     description: container killed due to memory limit
   crash_loop:
-    when: "restart_count > 5 & ready == false"
+    when: "restart_count >= 5"
     description: container repeatedly crashing
   unschedulable:
     when: "scheduled == false"
@@ -59,9 +62,6 @@ states:
   not_ready:
     when: "ready == false"
     description: pod exists but not serving
-  running:
-    when: "ready == true"
-    description: pod running and ready
   succeeded:
     when: "ready == false"
     description: pod completed successfully

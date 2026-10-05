@@ -58,17 +58,18 @@ facts:
 
 healthy:
   - pods_used < pods_hard
+  - exists == true
 
 states:
+  active:
+    when: "pods_used < pods_hard & exists == true"
+    description: quota in effect with headroom
   missing:
     when: "exists == false"
     description: quota not defined
   exhausted:
     when: "pods_used >= pods_hard"
     description: quota fully consumed — new pods will be rejected
-  active:
-    when: "exists == true"
-    description: quota in effect with headroom
 
 default_active_state: active
 

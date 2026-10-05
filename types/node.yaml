@@ -70,8 +70,13 @@ healthy:
   - ready == true
   - memory_pressure == false
   - disk_pressure == false
+  - network_unavailable == false
+  - pid_pressure == false
 
 states:
+  ready:
+    when: "ready == true & memory_pressure == false & disk_pressure == false & network_unavailable == false & pid_pressure == false"
+    description: node healthy and schedulable
   not_ready:
     when: "ready == false"
     description: node not ready
@@ -84,9 +89,6 @@ states:
   network_down:
     when: "network_unavailable == true"
     description: node network plugin not ready
-  ready:
-    when: "ready == true"
-    description: node healthy and schedulable
 
 default_active_state: ready
 

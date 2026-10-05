@@ -22,18 +22,18 @@ facts:
       cost: low
 
 healthy:
-  - ready_replicas == desired_replicas
+  - ready_replicas >= desired_replicas   # more ready than desired: a scale-down in progress
 
 states:
+  live:
+    when: "ready_replicas >= desired_replicas"
+    description: all replicas ready
   degraded:
     when: "ready_replicas < desired_replicas"
     description: some pods not ready
   scaled_to_zero:
     when: "desired_replicas == 0"
     description: inactive revision
-  live:
-    when: "ready_replicas == desired_replicas"
-    description: all replicas ready
 
 default_active_state: live
 

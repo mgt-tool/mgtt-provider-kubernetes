@@ -36,18 +36,18 @@ healthy:
   - ready == true
 
 states:
-  missing:
-    when: "exists == false"
-    description: custom resource does not exist
-  not_ready:
-    when: "exists == true & ready == false"
-    description: resource exists but not ready
-  not_synced:
-    when: "exists == true & synced == false"
-    description: resource not synced with desired state
   ready:
     when: "exists == true & ready == true"
     description: resource ready
+  missing:
+    when: "exists == false"
+    description: custom resource does not exist
+  not_synced:
+    when: "exists == true & synced == false"
+    description: resource not synced with desired state
+  not_ready:
+    when: "exists == true & ready == false"
+    description: resource exists but not ready
 
 default_active_state: ready
 

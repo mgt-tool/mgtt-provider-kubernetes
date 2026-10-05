@@ -26,6 +26,9 @@ healthy:
   - attached == true
 
 states:
+  attached:
+    when: "attached == true"
+    description: volume attached to node
   error:
     when: "attach_error == true"
     description: volume attachment failed with error
@@ -35,9 +38,6 @@ states:
   attaching:
     when: "attached == false"
     description: attachment in progress
-  attached:
-    when: "attached == true"
-    description: volume attached to node
 
 default_active_state: attached
 

@@ -43,13 +43,16 @@ facts:
       cost: low
 
 healthy:
-  - ready == desired_scheduled
+  - ready >= desired_scheduled
   - misscheduled == 0
   - restart_count < 5
 
 states:
+  live:
+    when: "ready >= desired_scheduled & misscheduled == 0 & restart_count < 5"
+    description: running on all target nodes
   crashed:
-    when: "restart_count > 5 & ready < desired_scheduled"
+    when: "restart_count >= 5"
     description: crash-looping pods
   incomplete:
     when: "ready < desired_scheduled"
@@ -57,9 +60,6 @@ states:
   misscheduled:
     when: "misscheduled > 0"
     description: running on nodes it should not be
-  live:
-    when: "ready == desired_scheduled"
-    description: running on all target nodes
 
 default_active_state: live
 

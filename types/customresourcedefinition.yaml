@@ -24,8 +24,12 @@ facts:
 healthy:
   - established == true
   - names_accepted == true
+  - exists == true
 
 states:
+  ready:
+    when: "established == true & names_accepted == true & exists == true"
+    description: CRD established and accepting instances
   missing:
     when: "exists == false"
     description: CRD not registered
@@ -35,9 +39,6 @@ states:
   name_conflict:
     when: "names_accepted == false"
     description: CRD name conflicts with another resource
-  ready:
-    when: "established == true & names_accepted == true"
-    description: CRD established and accepting instances
 
 default_active_state: ready
 
