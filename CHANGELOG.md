@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **`scaled_to_zero` is reachable, and healthy.** On `deployment`, `replicaset` and `statefulset` it came after `live`, whose rules hold at zero desired and zero ready, so a drained workload always read `live` and the state could never be seen. It now comes first, and the type marks it `healthy_in`: scaled to zero on purpose is not a failure, it starts no failure chain, and it no longer claims `can_cause`. A model that needs the replicas declares its own failure state for that component (`states: {drained: {when: "desired_replicas == 0"}}`). Requires an mgtt with `healthy_in`.
+
 ## [3.0.0] — 2026-04-18
 
 ### Changed (breaking)

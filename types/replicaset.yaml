@@ -25,20 +25,21 @@ healthy:
   - ready_replicas >= desired_replicas   # more ready than desired: a scale-down in progress
 
 states:
+  scaled_to_zero:
+    when: "desired_replicas == 0"
+    description: inactive revision
   live:
     when: "ready_replicas >= desired_replicas"
     description: all replicas ready
   degraded:
     when: "ready_replicas < desired_replicas"
     description: some pods not ready
-  scaled_to_zero:
-    when: "desired_replicas == 0"
-    description: inactive revision
 
 default_active_state: live
+# Scaled to zero on purpose is not a failure; a model that needs the
+# replicas says so in its own states:.
+healthy_in: [scaled_to_zero]
 
 failure_modes:
   degraded:
     can_cause: [upstream_failure, timeout]
-  scaled_to_zero:
-    can_cause: [upstream_failure, connection_refused]

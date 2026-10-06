@@ -1,2 +1,4 @@
 github.com/mgt-tool/mgtt v0.1.2 h1:Shv1Ic9JFdQ6YVeGTfareD0Il2evaBMY226x9R3nTqo=
 github.com/mgt-tool/mgtt v0.1.2/go.mod h1:KbrymTXL3eXMXl2POa6xy0AGm4I1rVnmBO+qFiOlx2g=
+github.com/mgt-tool/mgtt v0.3.1-0.20261006064636-da6145ff51b5 h1:RhPm30PKmB33ucM92v+KAbiV3LXYhvj8hTL0BiHzyvc=
+github.com/mgt-tool/mgtt v0.3.1-0.20261006064636-da6145ff51b5/go.mod h1:kNhE1x8bk5O+t2t39p7hhM0yg+z2uRNjh7V53FGPh7c=
